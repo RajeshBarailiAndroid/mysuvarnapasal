@@ -1,13 +1,25 @@
+node_modules/
+.tools/
+dist/
+desktop-app/license-signing/
+*.log
 .env
+.env.local
 .DS_Store
+artifacts/data/
+artifacts/api-server/data/
+artifacts/api-server/dist/
+_to_delete/
+*.code-workspace
 backend/.gradle/
 backend/build/
 backend/*/build/
-
-# IntelliJ IDEA
 .idea/
 *.iml
-
-# Local troubleshooting scratch (not part of the app)
 diagnose-output.txt
-_to_delete/
+
+# Desktop app (not pushed to web repo)
+desktop-app/
+desktop/
+build-mac-app.command
+build-windows-app.command

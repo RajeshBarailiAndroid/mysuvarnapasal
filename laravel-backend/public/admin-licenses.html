@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SubarnaPasal — License Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #f6f3ea; color: #2b2b2b; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 20px; color: #7a5c00; margin-bottom: 2px; }
+  .sub { font-size: 13px; color: #777; margin-bottom: 20px; }
+  .card { background: #fff; border: 1px solid #e5dcc3; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #555; margin: 8px 0 4px; }
+  input, select { width: 100%; border: 1px solid #d5cbb4; border-radius: 8px; padding: 9px 10px; font-size: 13.5px; }
+  input:focus { outline: 2px solid #c9a227; border-color: #c9a227; }
+  button { border: 0; border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .gold { background: #c9a227; color: #fff; }
+  .gold:hover { background: #b8931f; }
+  .ghost { background: #f1ecdd; color: #7a5c00; }
+  .danger { background: #fdeeee; color: #8c1f1f; }
+  .good { background: #eef7ee; color: #1e5c1e; }
+  .row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 140px; }
+  .err { color: #b00020; font-size: 13px; margin-top: 10px; min-height: 16px; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat { flex: 1; min-width: 130px; background: #fff; border: 1px solid #e5dcc3; border-radius: 12px; padding: 14px 16px; }
+  .stat b { display: block; font-size: 22px; color: #7a5c00; }
+  .stat span { font-size: 12px; color: #777; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: #777; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid #eee5cd; }
+  td { padding: 10px; border-bottom: 1px solid #f1ecdd; vertical-align: top; }
+  tr:hover td { background: #fdfbf4; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; }
+  .b-active { background: #eef7ee; color: #1e5c1e; }
+  .b-warn { background: #fff7e0; color: #7a5c00; }
+  .b-dead { background: #fdeeee; color: #8c1f1f; }
+  .b-grey { background: #eee; color: #666; }
+  .devices { font-size: 12px; color: #666; line-height: 1.5; }
+  .keycell { font: 10.5px/1.4 ui-monospace, Menlo, Consolas, monospace; color: #999; word-break: break-all; max-width: 190px; }
+  .actions { display: flex; flex-direction: column; gap: 6px; }
+  .actions button { padding: 6px 10px; font-size: 12px; }
+  #issuedKey { font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; background: #fdfbf4; border: 1px dashed #c9a227; border-radius: 8px; padding: 10px; margin-top: 10px; display: none; user-select: all; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SubarnaPasal — License Admin</h1>
+  <div class="sub">Shops, activations, renewals and revocation</div>
+
+  <!-- Unlock -->
+  <div class="card" id="login">
+    <label for="token">Admin token (SYNC_API_TOKEN)</label>
+    <div class="row">
+      <div style="flex:3"><input id="token" type="password" placeholder="Paste the admin token"></div>
+      <div style="flex:0"><button class="gold" id="unlockBtn">Unlock</button></div>
+    </div>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div id="app">
+    <div class="stats" id="stats"></div>
+
+    <!-- Issue a key -->
+    <div class="card">
+      <b style="font-size:14px; color:#7a5c00">Issue a key (new shop or renewal)</b>
+      <div class="row" style="margin-top:6px">
+        <div style="flex:2"><label>Shop name</label><input id="issueShop" placeholder="e.g. Subarna Jewellers"></div>
+        <div><label>Valid for (days)</label><input id="issueDays" type="number" value="365" min="1"></div>
+        <div><label>…or exact expiry</label><input id="issueExpiry" placeholder="YYYY-MM-DD"></div>
+        <div style="flex:2"><label>Note (optional)</label><input id="issueNote" placeholder="renewal 2027, paid via eSewa…"></div>
+        <div style="flex:0"><button class="gold" id="issueBtn">Create key</button></div>
+      </div>
+      <div id="issuedKey"></div>
+      <div class="err" id="issueErr"></div>
+    </div>
+
+    <!-- List -->
+    <div class="card">
+      <div class="topbar">
+        <b style="font-size:14px; color:#7a5c00">All licenses</b>
+        <button class="ghost" id="refreshBtn">Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Shop</th><th>Status</th><th>Expiry</th>
+            <th>Computers (last seen)</th><th>Note</th><th>Key</th><th></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="err" id="listErr"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let TOKEN = '';
+
+  async function api(route, opts = {}) {
+    const res = await fetch('/api/license/' + route, {
+      method: opts.method || 'GET',
+      headers: {
+        'Authorization': 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    let body = {};
+    try { body = await res.json(); } catch (_) {}
+    return { status: res.status, body };
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function daysLeft(expiry) {
+    return Math.ceil((new Date(expiry + 'T23:59:59') - Date.now()) / 86400000);
+  }
+
+  function statusOf(l) {
+    if (Number(l.revoked)) return ['REVOKED', 'b-dead'];
+    const d = daysLeft(l.expiry);
+    if (d < -7) return ['EXPIRED', 'b-dead'];
+    if (d < 0) return ['GRACE (' + (7 + d) + 'd left)', 'b-warn'];
+    if (d <= 15) return ['EXPIRES IN ' + d + 'd', 'b-warn'];
+    return ['ACTIVE · ' + d + 'd left', 'b-active'];
+  }
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    return isNaN(d) ? esc(s) : d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  async function load() {
+    $('listErr').textContent = '';
+    const { status, body } = await api('list');
+    if (status !== 200 || !body.ok) {
+      $('listErr').textContent = body.error || 'Could not load licenses (HTTP ' + status + ').';
+      return false;
+    }
+    const ls = body.licenses || [];
+    let active = 0, warn = 0, dead = 0, devices = 0;
+    for (const l of ls) {
+      const [txt] = statusOf(l);
+      if (txt.startsWith('ACTIVE')) active++;
+      else if (txt.startsWith('EXPIRES') || txt.startsWith('GRACE')) warn++;
+      else dead++;
+      devices += (l.activations || []).length;
+    }
+    $('stats').innerHTML =
+      '<div class="stat"><b>' + ls.length + '</b><span>licenses</span></div>' +
+      '<div class="stat"><b>' + active + '</b><span>active</span></div>' +
+      '<div class="stat"><b>' + warn + '</b><span>expiring / grace</span></div>' +
+      '<div class="stat"><b>' + dead + '</b><span>expired / revoked</span></div>' +
+      '<div class="stat"><b>' + devices + '</b><span>activated computers</span></div>';
+
+    $('rows').innerHTML = ls.map(l => {
+      const [txt, cls] = statusOf(l);
+      const devs = (l.activations || []).map(a =>
+        '• ' + esc(a.device_name || a.device_id.slice(0, 8)) + ' <span style="color:#aaa">(' + fmtDate(a.last_seen_at) + ')</span>'
+      ).join('<br>') || '<span style="color:#bbb">not activated yet</span>';
+      const revoked = Number(l.revoked);
+      return '<tr>' +
+        '<td>' + l.id + '</td>' +
+        '<td><b>' + esc(l.shop_name) + '</b></td>' +
+        '<td><span class="badge ' + cls + '">' + txt + '</span></td>' +
+        '<td>' + esc(l.expiry) + '</td>' +
+        '<td class="devices">' + devs + '</td>' +
+        '<td style="font-size:12px;color:#777">' + esc(l.note || '') + '</td>' +
+        '<td class="keycell">' + esc(l.license_key_masked || '') + '</td>' +
+        '<td class="actions">' +
+          '<button class="ghost" onclick="copyKey(this,' + l.id + ')">Copy key</button>' +
+          '<button class="ghost" onclick="renew(' + l.id + ')">Renew…</button>' +
+          (revoked
+            ? '<button class="good" onclick="setRevoked(' + l.id + ',false)">Enable</button>'
+            : '<button class="danger" onclick="setRevoked(' + l.id + ',true)">Revoke</button>') +
+        '</td></tr>';
+    }).join('');
+    window.__licenses = ls;
+    return true;
+  }
+
+  // Keys are no longer bulk-returned by /license/list — fetch this one on demand.
+  window.copyKey = async (btn, id) => {
+    const t = btn.textContent;
+    btn.textContent = '…';
+    const { status, body } = await api('reveal', { method: 'POST', body: { id } });
+    if (status !== 200 || !body.ok || !body.key) {
+      btn.textContent = 'Failed';
+      setTimeout(() => { btn.textContent = t; }, 1500);
+      return;
+    }
+    try { await navigator.clipboard.writeText(body.key); } catch (_) { /* ignore */ }
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = t; }, 1200);
+  };
+
+  window.renew = (id) => {
+    const l = (window.__licenses || []).find(x => x.id === id);
+    if (!l) return;
+    $('issueShop').value = l.shop_name;
+    $('issueDays').value = 365;
+    $('issueNote').value = 'renewal of #' + id;
+    $('issueShop').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  window.setRevoked = async (id, flag) => {
+    if (flag && !confirm('Revoke license #' + id + '? That shop’s app will lock the next time it is online.')) return;
+    const { status, body } = await api(flag ? 'revoke' : 'unrevoke', { method: 'POST', body: { id } });
+    if (status !== 200 || !body.ok) { $('listErr').textContent = body.error || 'Failed (HTTP ' + status + ').'; return; }
+    load();
+  };
+
+  $('issueBtn').addEventListener('click', async () => {
+    $('issueErr').textContent = '';
+    $('issuedKey').style.display = 'none';
+    const shopName = $('issueShop').value.trim();
+    if (!shopName) { $('issueErr').textContent = 'Enter the shop name.'; return; }
+    const payload = { shopName, note: $('issueNote').value.trim() || undefined };
+    const expiry = $('issueExpiry').value.trim();
+    if (expiry) payload.expiry = expiry; else payload.days = Number($('issueDays').value) || 365;
+    $('issueBtn').disabled = true;
+    const { status, body } = await api('issue', { method: 'POST', body: payload });
+    $('issueBtn').disabled = false;
+    if (status !== 200 || !body.ok) { $('issueErr').textContent = body.error || 'Failed (HTTP ' + status + ').'; return; }
+    $('issuedKey').style.display = 'block';
+    $('issuedKey').textContent = body.key;
+    load();
+  });
+
+  $('refreshBtn').addEventListener('click', load);
+
+  async function unlock() {
+    $('loginErr').textContent = '';
+    TOKEN = $('token').value.trim();
+    if (!TOKEN) { $('loginErr').textContent = 'Paste the admin token.'; return; }
+    const ok = await load();
+    if (!ok) { $('loginErr').textContent = 'That token was not accepted.'; $('listErr').textContent = ''; return; }
+    sessionStorage.setItem('sp_admin_token', TOKEN);
+    $('login').style.display = 'none';
+    $('app').style.display = 'block';
+  }
+  $('unlockBtn').addEventListener('click', unlock);
+  $('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') unlock(); });
+
+  // Auto-unlock within the same browser session.
+  const saved = sessionStorage.getItem('sp_admin_token');
+  if (saved) { $('token').value = saved; unlock(); }
+</script>
+</body>
+</html>
