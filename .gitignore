@@ -3,3 +3,11 @@
 backend/.gradle/
 backend/build/
 backend/*/build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Local troubleshooting scratch (not part of the app)
+diagnose-output.txt
+_to_delete/

@@ -228,15 +228,16 @@ class LicenseController(private val jdbc: JdbcTemplate, private val users: UserR
         }
         val data = verifyKey(key) ?: throw ApiException("This license key is not valid.", 422)
         val keyHash = sha256Hex(key)
-        var license = jdbc.queryForList("SELECT * FROM licenses WHERE key_hash = ?", keyHash).firstOrNull()
-        if (license == null) {
-            // Signed with our private key but issued offline — register it.
-            val id = jdbc.queryForObject(
-                "INSERT INTO licenses (shop_name, key_hash, license_key, expiry, revoked, note) VALUES (?,?,?,?,false,'auto-registered at activation') RETURNING id",
-                Long::class.java, data["n"]?.toString() ?: "", keyHash, key, data["e"].toString(),
-            )
-            license = jdbc.queryForList("SELECT * FROM licenses WHERE id = ?", id).first()
-        }
+        val license: Map<String, Any?> =
+            jdbc.queryForList("SELECT * FROM licenses WHERE key_hash = ?", keyHash).firstOrNull()
+                ?: run {
+                    // Signed with our private key but issued offline — register it.
+                    val id = jdbc.queryForObject(
+                        "INSERT INTO licenses (shop_name, key_hash, license_key, expiry, revoked, note) VALUES (?,?,?,?,false,'auto-registered at activation') RETURNING id",
+                        Long::class.java, data["n"]?.toString() ?: "", keyHash, key, data["e"].toString(),
+                    )
+                    jdbc.queryForList("SELECT * FROM licenses WHERE id = ?", id).first()
+                }
         if (license["revoked"] == true) throw ApiException("This license has been disabled. Please contact SubarnaPasal.", 403)
         val expiry = data["e"].toString()
         if (expiry < LocalDate.now().minusDays(7).toString()) {
