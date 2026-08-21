@@ -1,0 +1,28 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        # ── auth-service: accounts + desktop licensing ──────────────────
+        - id: auth
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/auth/**,/api/license/**
+
+        # ── rates-service: live metal rates + shared gold-rate feed ─────
+        - id: rates
+          uri: ${RATES_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/metal-rates,/api/shared/**,/api/cron/**
+
+        # ── store-service: everything else under /api ───────────────────
+        - id: store
+          uri: ${STORE_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/**
+      default-filters:
+        - RemoveResponseHeader=Server

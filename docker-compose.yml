@@ -1,0 +1,106 @@
+# SubarnaPasal — full web application (Kotlin backend + static UI).
+#   cp .env.example .env   (set the secrets!)
+#   docker compose up -d --build
+# App:  http://<host>:${WEB_PORT:-3000}     (UI + /api on the same origin)
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: subarnapasal
+      POSTGRES_USER: subarnapasal
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-subarnapasal}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U subarnapasal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: { MODULE: auth-service }
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/subarnapasal
+      DB_USER: subarnapasal
+      DB_PASSWORD: ${DB_PASSWORD:-subarnapasal}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      SYNC_API_TOKEN: ${SYNC_API_TOKEN:-}
+      LICENSE_PRIVATE_SEED: ${LICENSE_PRIVATE_SEED:-}
+      LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  store-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: { MODULE: store-service }
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/subarnapasal
+      DB_USER: subarnapasal
+      DB_PASSWORD: ${DB_PASSWORD:-subarnapasal}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      SYNC_API_TOKEN: ${SYNC_API_TOKEN:-}
+      PUBLIC_REQUEST_SALT: ${PUBLIC_REQUEST_SALT:-}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      RATES_SERVICE_URL: http://rates-service:8083
+      AUTH_SERVICE_URL: http://auth-service:8081
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  rates-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: { MODULE: rates-service }
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/subarnapasal
+      DB_USER: subarnapasal
+      DB_PASSWORD: ${DB_PASSWORD:-subarnapasal}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      METAL_PRICE_PROVIDER: ${METAL_PRICE_PROVIDER:-gold-api}
+      METAL_PRICE_API_KEY: ${METAL_PRICE_API_KEY:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      FX_NPR_PER_USD: ${FX_NPR_PER_USD:-}
+      FX_NPR_PER_CAD: ${FX_NPR_PER_CAD:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: { MODULE: api-gateway }
+    restart: unless-stopped
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      STORE_SERVICE_URL: http://store-service:8082
+      RATES_SERVICE_URL: http://rates-service:8083
+    depends_on:
+      - auth-service
+      - store-service
+      - rates-service
+
+  web:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api-gateway
+
+volumes:
+  pgdata:

@@ -1,0 +1,5 @@
+.env
+.DS_Store
+backend/.gradle/
+backend/build/
+backend/*/build/
