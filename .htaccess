@@ -1,0 +1,25 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Laravel owns API requests even though the copied build contains an api/ directory.
+    RewriteRule ^api(?:/|$) index.php [QSA,L]
+
+    # Never expose application configuration, source, logs, or databases.
+    RewriteRule ^(?:\.env|\.git(?:/|$)|artisan|composer\.(?:json|lock)|config(?:/|$)|database(?:/|$)|storage(?:/|$)|vendor(?:/|$)) - [F,L,NC]
+
+    <IfModule mod_headers.c>
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set X-Frame-Options "SAMEORIGIN"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Header always set Strict-Transport-Security "max-age=31536000"
+    </IfModule>
+
+    # Serve existing frontend files and directories.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^(.*)$ - [L]
+
+    # Route SPA pages and Laravel requests through the unified entry point.
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>

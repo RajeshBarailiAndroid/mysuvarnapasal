@@ -36,7 +36,6 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('/signup', [AuthController::class, 'signup'])->middleware('throttle:10,1');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
-    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:10,1');
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('throttle:10,1');
@@ -45,6 +44,8 @@ Route::prefix('auth')->group(function () {
 // ── Sync (local-first auto backup) ───────────────────────────────────────
 Route::post('/sync/push', [SyncController::class, 'push'])->middleware('throttle:240,1');
 Route::get('/sync/pull', [SyncController::class, 'pull'])->middleware('throttle:60,1');
+Route::get('/sync/run', [SyncController::class, 'run']);
+Route::get('/sync/status', [SyncController::class, 'status']);
 Route::post('/sync/restore', [SyncController::class, 'restore']);
 
 // ── Desktop app licensing (server role) ──────────────────────────────────
@@ -71,26 +72,19 @@ Route::get('/metal-rates', [RatesController::class, 'metalRates']);
 Route::get('/shared/gold-rates', [RatesController::class, 'sharedGoldRates']);
 Route::get('/cron/capture-gold-rate', [RatesController::class, 'cronCapture']);
 
-// ── Admin: shop moderation (the single is_admin account only) ────────────
-// EnsureAdmin answers 404 to everyone else, so this surface is not
-// discoverable by probing. Deliberately outside the AUTH_ENABLED=false
-// bypass: no-login desktop mode must never grant moderation powers.
-Route::middleware(['attach.user', 'admin'])->prefix('admin')->group(function () {
-    Route::get('/users', [AdminController::class, 'index'])->middleware('throttle:120,1');
-    Route::post('/users/{id}/approve', [AdminController::class, 'approve'])->middleware('throttle:60,1');
-    Route::post('/users/{id}/extend', [AdminController::class, 'extend'])->middleware('throttle:60,1');
-    Route::post('/users/{id}/unapprove', [AdminController::class, 'unapprove'])->middleware('throttle:60,1');
-    Route::post('/users/{id}/deny', [AdminController::class, 'deny'])->middleware('throttle:60,1');
-    Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivate'])->middleware('throttle:60,1');
-    Route::post('/users/{id}/reactivate', [AdminController::class, 'reactivate'])->middleware('throttle:60,1');
-    Route::delete('/users/{id}', [AdminController::class, 'destroy'])->middleware('throttle:20,1');
+// ── Administrator routes ─────────────────────────────────────────────────
+// Approve, renew, suspend and block shop accounts. `admin.only` runs after
+// `attach.user`, so a signed-in non-admin gets 403 rather than 401.
+Route::middleware(['attach.user', 'admin.only'])->prefix('admin')->group(function () {
+    Route::get('/users', [AdminController::class, 'users']);
+    Route::post('/users/{id}/approve', [AdminController::class, 'approve']);
+    Route::post('/users/{id}/extend', [AdminController::class, 'extend']);
+    Route::post('/users/{id}/unapprove', [AdminController::class, 'unapprove']);
+    Route::post('/users/{id}/deny', [AdminController::class, 'deny']);
 });
 
 // ── Authenticated routes ─────────────────────────────────────────────────
-Route::middleware(['attach.user', 'writable'])->group(function () {
-    Route::get('/sync/run', [SyncController::class, 'run']);
-    Route::get('/sync/status', [SyncController::class, 'status']);
-
+Route::middleware('attach.user')->group(function () {
     // SECURITY: writes to the SHARED, cross-shop gold-rate feed. This used to
     // be public, so anyone on the internet could push fake prices into the
     // table that drives POS pricing in api price mode. In no-login mode

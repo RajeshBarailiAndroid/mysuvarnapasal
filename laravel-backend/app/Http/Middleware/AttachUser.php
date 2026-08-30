@@ -41,8 +41,26 @@ class AttachUser
         if (!$accessToken) {
             return response()->json(['error' => 'Sign in required.'], 401);
         }
+
+        $user = $accessToken->tokenable;
+
+        // Re-check approval on EVERY request, not just at login. A token minted
+        // while the shop was approved must stop working the moment the admin
+        // suspends them — otherwise a suspended shop keeps trading until their
+        // token happens to expire.
+        //
+        // Deactivated accounts are the deliberate exception: they stay signed
+        // in and readable, and the `writable` middleware refuses their writes.
+        if ($user && !$user->canUseApi() && $user->status !== \App\Models\User::STATUS_DEACTIVATED) {
+            return response()->json([
+                'error' => $user->accessMessage(),
+                'status' => $user->status,
+                'expired' => $user->isExpired(),
+            ], 403);
+        }
+
         $request->attributes->set('userId', (string) $accessToken->tokenable_id);
-        $request->attributes->set('authUser', $accessToken->tokenable);
+        $request->attributes->set('authUser', $user);
         $request->attributes->set('accessToken', $accessToken);
         return $next($request);
     }

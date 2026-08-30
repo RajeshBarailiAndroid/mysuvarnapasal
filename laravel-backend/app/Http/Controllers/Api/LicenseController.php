@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Server-side licensing for the desktop app.
  *
- * Admin endpoints (Bearer SYNC_API_TOKEN — the same admin token as sync):
+ * Admin endpoints (Bearer LICENSE_ADMIN_TOKEN — server-side only):
  *   POST /api/license/issue   {shopName, days|expiry, note?}  → creates + returns a key
  *   GET  /api/license/list                                     → all keys + activations
  *   POST /api/license/revoke  {id}                             → remote-kill a license
@@ -35,7 +35,7 @@ class LicenseController extends ApiController
 {
     private function adminAuthorized(Request $request): bool
     {
-        $token = SyncService::token();
+        $token = trim((string) env('LICENSE_ADMIN_TOKEN', ''));
         if ($token === '') return false;
         $header = (string) $request->header('Authorization', '');
         $given = str_starts_with($header, 'Bearer ') ? substr($header, 7) : '';

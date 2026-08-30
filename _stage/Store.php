@@ -142,33 +142,6 @@ class Store
         }
     }
 
-    /**
-     * Remove every row belonging to one shop.
-     *
-     * Called only from the admin delete path, inside that method's
-     * transaction. Deliberately enumerates the tables rather than relying on
-     * cascading foreign keys, because the POS tables use a composite
-     * (user_id, id) primary key with no FK back to `users` — so nothing would
-     * cascade and a deleted shop's data would linger forever.
-     */
-    public function purgeUser(string $userId): void
-    {
-        $tables = array_merge(
-            ['settings', 'items', 'transactions', 'orders', 'customers', 'sync_status'],
-            array_values(self::JSON_COLLECTIONS),
-        );
-
-        foreach ($tables as $table) {
-            try {
-                DB::table($table)->where('user_id', $userId)->delete();
-            } catch (\Throwable $e) {
-                // A table that does not exist in this deployment (an older
-                // migration set) must not abort the whole deletion.
-                report($e);
-            }
-        }
-    }
-
     public function isShopNameTaken(string $shopName, string $excludeUserId): bool
     {
         $normalized = Pos::normalizeShopName($shopName);

@@ -83,6 +83,11 @@ export function createAuthRouter() {
   }));
 
   router.post('/signup', asyncRoute(async (req, res) => {
+    // Sign-up is a mobile-app-only flow: the phone apps send this header, the web
+    // build has no signup form, and anything else is refused here.
+    if (String(req.get('X-SP-Client') || '').trim().toLowerCase() !== 'mobile') {
+      return res.status(403).json({ error: 'New shop accounts are created from the SubarnaPasal mobile app. Download it and sign up there.' });
+    }
     if (!isAuthConfigured()) return res.status(503).json({ error: 'Sign-in is not configured yet.' });
     const admin = getSupabase();
     const anon = getAnonAuthClient();

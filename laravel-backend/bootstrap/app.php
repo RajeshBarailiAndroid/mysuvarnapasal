@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\AttachUser;
 use App\Http\Middleware\AutoSync;
+use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureWritable;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +20,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'attach.user' => AttachUser::class,
+            'admin' => EnsureAdmin::class,
+            'writable' => EnsureWritable::class,
         ]);
         $middleware->appendToGroup('api', AutoSync::class);
     })

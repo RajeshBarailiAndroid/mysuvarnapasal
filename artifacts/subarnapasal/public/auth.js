@@ -100,7 +100,6 @@ function showAuthError(formId, message) {
 
 function clearAuthErrors() {
   showAuthError('login', '');
-  showAuthError('signup', '');
   showAuthError('forgot', '');
   showAuthError('reset-password', '');
   showAuthError('change-password', '');
@@ -345,87 +344,8 @@ async function handleLoginSubmit(e) {
   }
 }
 
-async function handleSignupSubmit(e) {
-  e.preventDefault();
-
-  const username = normalizeUsername(document.getElementById('signup-username')?.value);
-  const fullName = document.getElementById('signup-full-name')?.value?.trim() || '';
-  const email = document.getElementById('signup-email')?.value?.trim() || '';
-  const phone = document.getElementById('signup-phone')?.value?.trim() || '';
-  const password = document.getElementById('signup-password')?.value || '';
-  const confirm = document.getElementById('signup-password-confirm')?.value || '';
-
-  if (!isValidUsername(username)) {
-    showAuthError('signup', tt('authInvalidUsername', 'Enter a valid username.'));
-    return;
-  }
-  if (!fullName) {
-    showAuthError('signup', tt('authFullNameRequired', 'Enter your full name.'));
-    return;
-  }
-  if (!email && !phone) {
-    showAuthError('signup', tt('authContactRequired', 'Enter an email address or mobile number.'));
-    return;
-  }
-  if (email && !isValidEmail(email)) {
-    showAuthError('signup', tt('authInvalidEmail', 'Enter a valid email address.'));
-    return;
-  }
-  if (phone && typeof isValidPhoneForRegion === 'function'
-    && typeof getPhoneRegionFromSelect === 'function'
-    && !isValidPhoneForRegion(phone, getPhoneRegionFromSelect('signup-phone-region'))) {
-    const region = getPhoneRegionFromSelect('signup-phone-region');
-    showAuthError('signup', typeof phoneInvalidMessage === 'function' ? phoneInvalidMessage(region) : 'Enter a valid phone number.');
-    return;
-  }
-  if (!isValidPassword(password)) {
-    showAuthError('signup', tt('authInvalidPassword', 'Password must be at least 6 characters.'));
-    return;
-  }
-  if (password !== confirm) {
-    showAuthError('signup', tt('authPasswordMismatch', 'Passwords do not match.'));
-    return;
-  }
-
-  showAuthError('signup', '');
-  const submitBtn = e.target.querySelector('.auth-submit');
-  if (submitBtn) submitBtn.disabled = true;
-
-  try {
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        full_name: fullName,
-        email,
-        phone,
-        phoneRegion: typeof getPhoneRegionFromSelect === 'function' ? getPhoneRegionFromSelect('signup-phone-region') : undefined,
-        password
-      })
-    });
-    const payload = await res.json().catch(() => ({}));
-
-    if (submitBtn) submitBtn.disabled = false;
-
-    if (!res.ok) {
-      showAuthError('signup', payload.error || tt('authUsernameTaken', 'Could not create account.'));
-      return;
-    }
-
-    if (payload.session?.access_token) {
-      setStoredToken(payload.session.access_token);
-      signedInUser = payload.session.user || { username };
-      window.location.replace(APP_PATH);
-      return;
-    }
-
-    redirectToLogin();
-  } catch (err) {
-    if (submitBtn) submitBtn.disabled = false;
-    showAuthError('signup', err.message || tt('authUsernameTaken', 'Could not create account.'));
-  }
-}
+// Sign-up is a mobile-app-only flow; the web build has no signup form and the
+// API rejects web signups (AuthController::signup requires the mobile client header).
 
 async function handleChangePasswordSubmit(e) {
   e.preventDefault();
@@ -512,7 +432,7 @@ async function signOut(e) {
 
 function bindAuthEvents() {
   document.getElementById('login-form')?.addEventListener('submit', handleLoginSubmit);
-  document.getElementById('signup-form')?.addEventListener('submit', handleSignupSubmit);
+  // Sign-up is mobile-app-only; there is no signup form on the web any more.
   document.getElementById('settings-logout-btn')?.addEventListener('click', (e) => signOut(e));
   document.getElementById('settings-change-password-form')?.addEventListener('submit', handleChangePasswordSubmit);
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ItemPhoto;
 use App\Support\Pos;
 use Illuminate\Support\Facades\DB;
 
@@ -142,33 +143,6 @@ class Store
         }
     }
 
-    /**
-     * Remove every row belonging to one shop.
-     *
-     * Called only from the admin delete path, inside that method's
-     * transaction. Deliberately enumerates the tables rather than relying on
-     * cascading foreign keys, because the POS tables use a composite
-     * (user_id, id) primary key with no FK back to `users` — so nothing would
-     * cascade and a deleted shop's data would linger forever.
-     */
-    public function purgeUser(string $userId): void
-    {
-        $tables = array_merge(
-            ['settings', 'items', 'transactions', 'orders', 'customers', 'sync_status'],
-            array_values(self::JSON_COLLECTIONS),
-        );
-
-        foreach ($tables as $table) {
-            try {
-                DB::table($table)->where('user_id', $userId)->delete();
-            } catch (\Throwable $e) {
-                // A table that does not exist in this deployment (an older
-                // migration set) must not abort the whole deletion.
-                report($e);
-            }
-        }
-    }
-
     public function isShopNameTaken(string $shopName, string $excludeUserId): bool
     {
         $normalized = Pos::normalizeShopName($shopName);
@@ -186,6 +160,10 @@ class Store
         return DB::table('items')->where('user_id', $userId)->orderByDesc('position')->get()
             ->map(fn ($r) => [
                 'id' => $r->id, 'sku' => $r->sku, 'name' => $r->name, 'category' => $r->category,
+                'itemNumber' => $r->item_number ?? '',
+                'photoPath' => $r->photo_path ?: null,
+                // Derived on read, never stored — itemToRow drops it again.
+                'photoUrl' => ItemPhoto::url($r->photo_path ?: null),
                 'karat' => (float) $r->karat, 'weightGrams' => (float) $r->weight_grams,
                 'weightUnit' => $r->weight_unit ?? 'grams',
                 'makingCharge' => (float) $r->making_charge,
@@ -206,6 +184,8 @@ class Store
     {
         return [
             'id' => $i['id'], 'user_id' => $userId, 'sku' => $i['sku'], 'name' => $i['name'],
+            'item_number' => $i['itemNumber'] ?? '',
+            'photo_path' => $i['photoPath'] ?? null,
             'category' => $i['category'], 'karat' => $i['karat'],
             'weight_grams' => $i['weightGrams'], 'weight_unit' => $i['weightUnit'] ?? 'grams',
             'making_charge' => $i['makingCharge'] ?? 0,

@@ -48,35 +48,10 @@
 
             <div class="auth-page-divider" aria-hidden="true"><span data-i18n="authOr">or</span></div>
 
-            <button type="button" class="fb-btn fb-btn-outline-blue fb-btn-pill" id="show-signup-panel" data-i18n="authCreateAccount">Create new account</button>
+            <!-- Sign-up happens in the mobile app only; the API refuses web signups too. -->
+            <p class="auth-page-subheading" data-i18n="authSignupOnMobile">New shop? Create your account in the SubarnaPasal mobile app.</p>
           </div>
 
-          <div id="auth-signup-panel" class="auth-panel" hidden>
-            <h2 class="auth-page-heading" data-i18n="signUpTitle">Sign Up</h2>
-            <p class="auth-page-subheading" data-i18n="signUpTagline">It's quick and easy.</p>
-
-            <form id="signup-form" class="auth-form fb-auth-form" novalidate>
-              <input type="text" id="signup-full-name" class="fb-input" autocomplete="name" data-i18n-placeholder="authFullNamePlaceholder" placeholder="Full name" required />
-              <input type="text" id="signup-username" class="fb-input" autocomplete="username" data-i18n-placeholder="authUsernameSignupPlaceholder" placeholder="Username" required />
-              <input type="email" id="signup-email" class="fb-input" autocomplete="email" data-i18n-placeholder="authEmailPlaceholder" placeholder="Email address" />
-              <label class="auth-phone-region-field">
-                <span data-i18n="authPhoneRegion">Phone region</span>
-                <select id="signup-phone-region" class="fb-input auth-phone-region-select" aria-label="Phone region">
-                  <option value="NP" data-i18n-option="authPhoneRegionNP">Nepal (+977)</option>
-                  <option value="US" data-i18n-option="authPhoneRegionUS">United States (+1)</option>
-                  <option value="CA" data-i18n-option="authPhoneRegionCA">Canada (+1)</option>
-                </select>
-              </label>
-              <input type="tel" id="signup-phone" class="fb-input" autocomplete="tel" data-i18n-placeholder="authPhonePlaceholderNP" placeholder="98XXXXXXXX" />
-              <p class="auth-field-hint" id="signup-phone-hint" data-i18n="authEmailOrPhoneHintNP">Email or Nepal mobile number required</p>
-              <input type="password" id="signup-password" class="fb-input" autocomplete="new-password" data-i18n-placeholder="authPasswordSignupPlaceholder" placeholder="New password" required />
-              <input type="password" id="signup-password-confirm" class="fb-input" autocomplete="new-password" data-i18n-placeholder="authConfirmPasswordPlaceholder" placeholder="Re-enter password" required />
-              <p class="auth-error" id="signup-error" hidden></p>
-              <button type="submit" class="fb-btn fb-btn-signup fb-btn-pill auth-submit" data-i18n="signUpTab">Sign up</button>
-            </form>
-
-            <button type="button" class="fb-link-btn auth-page-back-link" id="show-login-panel" data-i18n="authAlreadyHaveAccount">Already have an account?</button>
-          </div>
         </div>
       </main>
     </div>
