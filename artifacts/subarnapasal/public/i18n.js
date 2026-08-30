@@ -19,7 +19,7 @@ const I18N = {
     appLoading: 'Loading…',
     authPageTagline: 'Jewelry inventory, POS, and sales — all in one place.',
     authOr: 'or',
-    authSignupOnMobile: 'New shop? Create your account in the SubarnaPasal mobile app.',
+    authSignupOnMobile: '',
     signUpTitle: 'Sign Up',
     signUpTagline: "It's quick and easy.",
     loginTab: 'Log in',
