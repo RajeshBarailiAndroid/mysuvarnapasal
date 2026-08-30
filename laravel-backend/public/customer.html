@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f0d0a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="robots" content="noindex, nofollow" />
+<title>SubarnaPasal — Customer Request</title>
+<style>
+  :root {
+    --bg: #0f0d0a;
+    --bg-soft: #171310;
+    --card: #1d1813;
+    --card-2: #241d16;
+    --line: #3a2f24;
+    --text: #f6efe4;
+    --muted: #b6a691;
+    --gold: #d4af37;
+    --gold-soft: #f0d98a;
+    --red: #d9705f;
+    --radius: 14px;
+    --tap: 44px;                       /* minimum touch target */
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --tray-h: 0px;                     /* set from JS so content clears the tray */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 20% -10%, #2a2119 0%, var(--bg) 60%) no-repeat, var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: rgba(212,175,55,.18);
+  }
+  .wrap {
+    max-width: 1000px; margin: 0 auto;
+    padding: 16px calc(16px + var(--safe-r)) calc(28px + var(--tray-h) + var(--safe-b)) calc(16px + var(--safe-l));
+  }
+
+  /* ---------- header ---------- */
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 6px 0 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand .mark {
+    width: 38px; height: 38px; border-radius: 12px; flex: none;
+    background: linear-gradient(145deg, var(--gold), #8a6d1d);
+    display: grid; place-items: center; color: #241d0a; font-weight: 800; font-size: 17px;
+  }
+  .brand h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  .brand p { margin: 0; font-size: 12px; color: var(--muted); }
+  .who { text-align: right; font-size: 12px; color: var(--muted); min-width: 0; }
+  .who strong { color: var(--text); display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- cards / generic ---------- */
+  .card {
+    background: linear-gradient(180deg, var(--card-2), var(--card));
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px;
+  }
+  h2 { font-size: 17px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 14px 0 6px; }
+  input, select, textarea {
+    width: 100%; padding: 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: #120f0c; color: var(--text);
+    font-family: inherit; font-size: 16px;   /* 16px stops iOS from zooming on focus */
+    line-height: 1.3; min-height: var(--tap); outline: none;
+    -webkit-appearance: none; appearance: none;
+  }
+  select {
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+    padding-right: 34px;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,175,55,.15); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 16px; min-height: var(--tap); border-radius: 10px; border: 1px solid var(--line);
+    background: #241d16; color: var(--text); font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: .15s ease; touch-action: manipulation; white-space: nowrap;
+  }
+  .btn:active { transform: scale(.98); }
+  @media (hover: hover) { .btn:hover { border-color: var(--gold); } }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-gold { background: linear-gradient(145deg, var(--gold-soft), var(--gold)); color: #201803; border-color: transparent; }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 9px 13px; font-size: 14px; min-height: 40px; border-radius: 9px; }
+  .err { color: var(--red); font-size: 13px; min-height: 18px; margin-top: 10px; }
+  .hidden { display: none !important; }
+
+  /* ---------- login ---------- */
+  #login { max-width: 420px; margin: 4vh auto 0; }
+
+  /* ---------- toolbar ---------- */
+  .toolbar { display: grid; gap: 10px; margin: 14px 0; grid-template-columns: 1fr 1fr; }
+  .toolbar .search { grid-column: 1 / -1; }
+  .rate-note { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+
+  /* ---------- item list ---------- */
+  .grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  .item {
+    background: linear-gradient(180deg, var(--card-2), var(--card));
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .item.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(212,175,55,.18) inset; }
+  .item-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .item-name { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+  .item-code { font-size: 12px; color: var(--muted); }
+  .price { font-weight: 700; color: var(--gold-soft); text-align: right; flex: none; }
+  .price small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11px; padding: 4px 9px; border-radius: 999px; background: #2e251b; border: 1px solid var(--line); color: var(--muted); }
+  .tag.ok { color: #a5dcb8; border-color: #2f5a3d; background: #16281d; }
+  .tag.low { color: #f0d9a5; border-color: #5c4a2c; background: #2a2416; }
+  .tag.out { color: #f0b1a5; border-color: #5c342c; background: #2a1a16; }
+
+  /* field list — the spec's columns, one row each */
+  .fields { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
+  .fields dt { color: var(--muted); }
+  .fields dd { margin: 0; }
+  dl.fields { margin: 0; }
+
+  .item-actions { display: flex; gap: 8px; align-items: center; margin-top: auto; flex-wrap: wrap; }
+  .qty-box { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .qty { width: 68px; flex: none; padding: 8px; text-align: center; min-height: 40px; }
+  .item-actions .btn { flex: 1 1 120px; }
+  .qty-warn { flex: 1 1 100%; color: var(--red); font-size: 12px; }
+  .empty { text-align: center; color: var(--muted); padding: 26px 12px; line-height: 1.6; }
+
+  /* ---------- selection tray ---------- */
+  .tray {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: rgba(18,15,12,.97); border-top: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  .tray-inner {
+    max-width: 1000px; margin: 0 auto;
+    padding: 10px calc(16px + var(--safe-r)) calc(10px + var(--safe-b)) calc(16px + var(--safe-l));
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .tray-top { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex: 1 1 220px; }
+  .tray .count { font-weight: 700; white-space: nowrap; font-size: 14px; }
+  .tray .names { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tray-note { flex: 1 1 180px; min-height: 40px; padding: 9px 12px; }
+  .tray-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+
+  /* ---------- your requests ---------- */
+  #myRequests { margin-top: 26px; }
+  .req { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--bg-soft); margin-bottom: 10px; }
+  .req-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .req-no { font-weight: 700; color: var(--gold-soft); }
+  .req-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .req ul { margin: 8px 0 0; padding-left: 18px; }
+  .req li { font-size: 14px; }
+  .status { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid #2f5a3d; background: #16281d; color: #a5dcb8; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed; z-index: 40;
+    left: 12px; right: 12px; bottom: calc(14px + var(--tray-h) + var(--safe-b));
+    margin: 0 auto; max-width: 460px; text-align: center;
+    background: #241d16; border: 1px solid var(--gold); color: var(--text);
+    padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  }
+
+  /* ---------- wider screens ---------- */
+  @media (min-width: 560px) {
+    .wrap { padding-top: 20px; }
+    .toolbar { grid-template-columns: minmax(180px, 2fr) 1fr 1fr auto; }
+    .toolbar .search { grid-column: auto; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .item-actions .btn { flex: 0 1 auto; }
+    #toast { border-radius: 999px; }
+  }
+  @media (min-width: 900px) {
+    .wrap { padding-left: 16px; padding-right: 16px; }
+    #login { margin-top: 6vh; }
+  }
+  /* phones: stack the tray into three tidy rows (flex-basis is height in a column,
+     so the row-layout basis values must be reset here) */
+  @media (max-width: 559px) {
+    .tray-inner { flex-direction: column; align-items: stretch; gap: 8px; }
+    .tray-top, .tray-note, .tray-actions { flex: 0 0 auto; }
+    .tray-top { align-items: baseline; }
+    .tray-actions .btn { flex: 1 1 0; }
+    .tray-actions .btn:first-child { flex: 0 0 auto; }
+  }
+  @media (max-width: 380px) {
+    .brand h1 { font-size: 17px; }
+    .brand p { font-size: 11px; }
+    .item-actions { flex-wrap: wrap; }
+  }
+  /* short landscape phones: keep the login card visible */
+  @media (max-height: 480px) {
+    #login { margin-top: 0; }
+    header.top { padding-bottom: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark">SP</div>
+      <div>
+        <h1>SubarnaPasal</h1>
+        <p>Customer item request</p>
+      </div>
+    </div>
+    <div class="who hidden" id="who"></div>
+  </header>
+
+  <!-- ================= 1. WELCOME + WHO YOU ARE ================= -->
+  <section id="login" class="card">
+    <h2>Welcome</h2>
+    <p class="sub">Please enter your full name and phone number to see the shop's inventory and request items. Both are required.</p>
+    <form id="loginForm" novalidate>
+      <label for="nameInput">Full name *</label>
+      <input id="nameInput" type="text" autocomplete="name" enterkeyhint="next" placeholder="e.g. Sita Sharma" maxlength="120" required />
+      <label for="phoneInput">Phone number *</label>
+      <input id="phoneInput" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="go" placeholder="e.g. 9800000000" maxlength="20" required />
+      <div class="err" id="loginErr"></div>
+      <button class="btn btn-gold btn-block" type="submit" style="margin-top:8px">OK</button>
+    </form>
+  </section>
+
+  <!-- ================= 2. INVENTORY ================= -->
+  <section id="inventory" class="hidden">
+    <h2>Inventory</h2>
+    <p class="sub">Tap <strong>Select</strong> on the items you want, set how many you need, then send them all with <strong>Request Selected Items</strong>.</p>
+
+    <div class="toolbar">
+      <input id="search" class="search" type="search" enterkeyhint="search" placeholder="Search name, item no. or SKU…" />
+      <select id="categoryFilter" aria-label="Category"><option value="">All categories</option></select>
+      <select id="stockFilter" aria-label="Availability">
+        <option value="">All items</option>
+        <option value="in" selected>In stock only</option>
+      </select>
+      <button class="btn" id="reloadBtn" type="button">Reload</button>
+    </div>
+    <p class="rate-note" id="rateNote"></p>
+
+    <div class="grid" id="itemGrid"></div>
+    <div class="empty hidden" id="itemEmpty">No items match your search.</div>
+
+    <div id="myRequests" class="hidden">
+      <h2>Your requests</h2>
+      <p class="sub">These are now in the shop's <strong>Requested</strong> list under your name.</p>
+      <div id="reqList"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= selection tray ================= -->
+<div class="tray hidden" id="tray">
+  <div class="tray-inner">
+    <div class="tray-top">
+      <span class="count" id="trayCount">0 selected</span>
+      <span class="names" id="trayNames"></span>
+    </div>
+    <input id="trayNote" class="tray-note" type="text" placeholder="Note for the shop (optional)" maxlength="500" />
+    <div class="tray-actions">
+      <button class="btn btn-sm" type="button" id="clearSel">Clear</button>
+      <button class="btn btn-gold btn-sm" type="button" id="requestSel">Request Selected Items</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ───────────────────────── config ─────────────────────────
+  // Two ways to run:
+  //
+  //  1. PUBLIC LINK (hosted): /order/<code> or /customer.html?shop=<code>.
+  //     The code scopes every call to one shop through the no-login endpoints
+  //     /api/public/<code>/items and /api/public/<code>/requests. No token is
+  //     sent, and nothing else in the API is reachable from this page.
+  //
+  //  2. LOCAL / SIGNED-IN: no code in the URL. Falls back to the shop's own
+  //     /api/items and /api/requests — handy with `sh start.sh`, where auth is
+  //     off. ?token=... or the shop's saved login token is sent if present.
+  //
+  // ?api=http://localhost:8080 points either mode at a different API host.
+  var params = new URLSearchParams(location.search);
+  var API_BASE = (params.get('api') || '').replace(/\/+$/, '');
+  var pathCode = (location.pathname.match(/\/order\/([A-Za-z0-9]{8,64})\/?$/) || [])[1] || '';
+  var SHOP = (params.get('shop') || pathCode || '').replace(/[^A-Za-z0-9]/g, '');
+  var TOKEN = SHOP ? '' : (params.get('token') || readLS('sp_auth_token') || '');
+  var TOLA_GRAMS = 11.6638;
+
+  // Endpoints for the mode we are in.
+  var EP = SHOP
+    ? { items: '/api/public/' + SHOP + '/items', requests: '/api/public/' + SHOP + '/requests' }
+    : { items: '/api/items', requests: '/api/requests' };
+
+  function readLS(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function apiUrl(p) { return API_BASE ? API_BASE + p : p; }
+
+  async function api(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
+    var res = await fetch(apiUrl(path), {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = {}; }
+    if (res.status === 404 && SHOP) throw new Error('This link is not valid any more. Please ask the shop for a new one.');
+    if (res.status === 429) throw new Error('Too many attempts just now. Please wait a minute and try again.');
+    if (res.status === 401) throw new Error('The shop API needs a sign-in. Open the shop’s customer link (/order/…), or add ?token=YOUR_TOKEN to the address.');
+    if (!res.ok) throw new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+    return data;
+  }
+
+  // ───────────────────────── state ─────────────────────────
+  var customer = { name: '', phone: '' };
+  var items = [];
+  var rates = { gold: 0, silver: 0, currency: 'NPR', live: false };
+  var selected = Object.create(null);   // itemId -> quantity
+  var myRequests = [];
+
+  // ───────────────────────── helpers ─────────────────────────
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  var moneyFmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+  function money(n) { return 'Rs ' + moneyFmt.format(Math.round(Number(n) || 0)); }
+
+  /** Keep page content and the toast clear of the fixed tray, whatever its height. */
+  function syncTrayHeight() {
+    var tray = $('tray');
+    var h = tray && !tray.classList.contains('hidden') ? tray.getBoundingClientRect().height : 0;
+    document.documentElement.style.setProperty('--tray-h', Math.round(h) + 'px');
+  }
+  window.addEventListener('resize', syncTrayHeight);
+  window.addEventListener('orientationchange', function () { setTimeout(syncTrayHeight, 250); });
+
+  var toastTimer = null;
+  function toast(msg, isError) {
+    var el = $('toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
+    el.textContent = msg;
+    el.style.borderColor = isError ? 'var(--red)' : 'var(--gold)';
+    el.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.remove(); }, 4500);
+  }
+
+  function metalOf(item) {
+    var c = String(item.category || '').toLowerCase();
+    if (c.indexOf('silver') > -1 || c.indexOf('चाँदी') > -1) return 'silver';
+    if (c.indexOf('gold') > -1 || c.indexOf('सुन') > -1) return 'gold';
+    return 'other';
+  }
+
+  /** Shelf price if the shop set one, else a live estimate from weight x karat x rate. */
+  function itemPrice(item) {
+    var sale = Number(item.salePrice) || 0;
+    if (sale > 0) return { value: sale, estimate: false };
+    var grams = Number(item.weightGrams) || 0;
+    if (grams <= 0) return null;
+    var metal = metalOf(item);
+    var perTola = Number(item.customRatePerTola) || 0;
+    if (!perTola) perTola = metal === 'silver' ? rates.silver : rates.gold;
+    if (!perTola) return null;
+    var purity = metal === 'gold' ? (Number(item.karat) || 24) / 24 : 1;
+    var value = (perTola / TOLA_GRAMS) * grams * purity + (Number(item.makingCharge) || 0);
+    if (!isFinite(value) || value <= 0) return null;
+    return { value: value, estimate: true };
+  }
+
+  /** How many pieces a customer may ask for — never more than the shop has. */
+  function availableQty(item) {
+    var qty = Math.floor(Number(item.quantity) || 0);
+    return qty > 0 ? qty : 0;
+  }
+
+  function inStock(item) {
+    var status = String(item.status || '').toLowerCase();
+    return availableQty(item) > 0 && status !== 'sold' && status !== 'sold_out';
+  }
+
+  /** Unit the available quantity is counted in, plus the per-piece weight unit. */
+  function unitLabel(item) {
+    var weightUnit = String(item.weightUnit || '').toLowerCase();
+    var grams = Number(item.weightGrams) || 0;
+    if (weightUnit === 'tola' && grams > 0) return 'piece (' + (grams / TOLA_GRAMS).toFixed(3) + ' tola each)';
+    if (grams > 0) return 'piece (' + grams + ' g each)';
+    return 'piece';
+  }
+
+  function statusLabel(item) {
+    if (!inStock(item)) return { text: 'Out of stock', cls: 'out' };
+    if (availableQty(item) <= 1) return { text: 'Low stock', cls: 'low' };
+    return { text: 'In stock', cls: 'ok' };
+  }
+
+  // ───────────────────────── login ─────────────────────────
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('nameInput').value.trim();
+    var phone = $('phoneInput').value.trim();
+    var digits = phone.replace(/\D/g, '');
+    if (!name) return fail('Please enter your name.');
+    if (!phone) return fail('Please enter your phone number.');
+    if (digits.length < 7) return fail('That phone number looks too short.');
+    $('loginErr').textContent = '';
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    customer.name = name;
+    customer.phone = phone;
+    $('who').innerHTML = '<strong>' + esc(name) + '</strong>' + esc(phone);
+    $('who').classList.remove('hidden');
+    $('login').classList.add('hidden');
+    $('inventory').classList.remove('hidden');
+    window.scrollTo(0, 0);
+    loadItems();
+    loadMyRequests();
+  });
+  function fail(msg) { $('loginErr').textContent = msg; }
+
+  // ───────────────────────── inventory ─────────────────────────
+  async function loadItems() {
+    $('itemGrid').innerHTML = '<div class="empty">Loading inventory…</div>';
+    try {
+      var data = await api(EP.items);
+      items = (data.items || []).slice();
+      if (data.shopName) {
+        document.querySelector('.brand h1').textContent = data.shopName;
+        document.title = data.shopName + ' — Customer Request';
+      }
+      rates.gold = Number(data.goldRatePerTola) || 0;
+      rates.silver = Number(data.silverRatePerTola) || 0;
+      rates.currency = data.metalCurrency || 'NPR';
+      rates.live = !!data.metalRatesLive;
+      fillCategories();
+      renderRate();
+      renderItems();
+    } catch (err) {
+      items = [];
+      $('itemGrid').innerHTML = '<div class="empty">' + esc(err.message) + '<br><br>' +
+        (SHOP ? 'Please try again in a moment, or contact the shop.'
+              : 'Make sure the SubarnaPasal API is running (<code>sh start.sh</code>).') + '</div>';
+    }
+  }
+
+  function fillCategories() {
+    var sel = $('categoryFilter');
+    var current = sel.value;
+    var cats = [];
+    items.forEach(function (i) {
+      var c = String(i.category || '').trim();
+      if (c && cats.indexOf(c) === -1) cats.push(c);
+    });
+    cats.sort();
+    sel.innerHTML = '<option value="">All categories</option>' +
+      cats.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    if (cats.indexOf(current) > -1) sel.value = current;
+  }
+
+  function renderRate() {
+    var bits = [];
+    if (rates.gold) bits.push('Gold ' + money(rates.gold) + ' / tola');
+    if (rates.silver) bits.push('Silver ' + money(rates.silver) + ' / tola');
+    $('rateNote').textContent = bits.length
+      ? "Today's rate — " + bits.join(' · ') + (rates.live ? ' (live)' : '') + '. Prices marked ~ are estimates.'
+      : '';
+  }
+
+  function visibleItems() {
+    var term = $('search').value.trim().toLowerCase();
+    var cat = $('categoryFilter').value;
+    var stock = $('stockFilter').value;
+    return items.filter(function (i) {
+      if (cat && String(i.category || '') !== cat) return false;
+      if (stock === 'in' && !inStock(i)) return false;
+      if (term) {
+        var hay = [i.name, i.sku, i.itemNumber, i.category, i.location, i.notes].filter(Boolean).join(' ').toLowerCase();
+        if (hay.indexOf(term) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderItems() {
+    var list = visibleItems();
+    var grid = $('itemGrid');
+    $('itemEmpty').classList.toggle('hidden', list.length > 0 || items.length === 0);
+    grid.innerHTML = list.map(itemCard).join('');
+    renderTray();
+  }
+
+  function itemCard(item) {
+    var priced = itemPrice(item);
+    var status = statusLabel(item);
+    var available = availableQty(item);
+    var code = item.itemNumber || item.sku || '—';
+
+    var extras = [];
+    if (Number(item.karat) > 0 && metalOf(item) === 'gold') extras.push(esc(item.karat) + 'K');
+    if (Number(item.weightGrams) > 0) extras.push(esc(item.weightGrams) + ' g');
+    if (item.hallmark) extras.push('Hallmark');
+
+    var isSel = Object.prototype.hasOwnProperty.call(selected, item.id);
+    var qty = isSel ? selected[item.id] : 1;
+    var canRequest = available > 0;
+
+    return '' +
+      '<div class="item' + (isSel ? ' selected' : '') + '" data-id="' + esc(item.id) + '">' +
+        '<div class="item-head">' +
+          '<div>' +
+            '<div class="item-name">' + esc(item.name) + '</div>' +
+            '<div class="item-code">' + esc(code) + (item.sku && item.itemNumber ? ' · ' + esc(item.sku) : '') + '</div>' +
+          '</div>' +
+          '<div class="price">' +
+            (priced ? (priced.estimate ? '~' : '') + money(priced.value) : '—') +
+            (priced && priced.estimate ? '<small>estimate</small>' : '') +
+          '</div>' +
+        '</div>' +
+        '<dl class="fields">' +
+          '<dt>Category</dt><dd>' + esc(item.category || '—') + (extras.length ? ' <span class="req-meta">' + extras.join(' · ') + '</span>' : '') + '</dd>' +
+          '<dt>Available</dt><dd>' + available + '</dd>' +
+          '<dt>Unit</dt><dd>' + esc(unitLabel(item)) + '</dd>' +
+          '<dt>Status</dt><dd><span class="tag ' + status.cls + '">' + esc(status.text) + '</span></dd>' +
+        '</dl>' +
+        '<div class="item-actions">' +
+          (canRequest
+            ? '<span class="qty-box"><label for="qty-' + esc(item.id) + '">Qty</label>' +
+                '<input class="qty" id="qty-' + esc(item.id) + '" type="number" inputmode="numeric" min="1" step="1" max="' + available + '"' +
+                ' value="' + qty + '" data-qty="' + esc(item.id) + '" aria-label="Requested quantity" />' +
+                '<span>/ ' + available + '</span></span>' +
+              '<button class="btn btn-sm' + (isSel ? ' btn-gold' : '') + '" type="button" data-select="' + esc(item.id) + '">' +
+                (isSel ? 'Selected ✓' : 'Select') + '</button>'
+            : '<span class="qty-box">Not available to request right now.</span>') +
+          '<span class="qty-warn hidden" data-warn="' + esc(item.id) + '"></span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ───────────────────────── selection ─────────────────────────
+  function itemById(id) { return items.find(function (i) { return i.id === id; }) || null; }
+
+  /**
+   * Requested quantity for one item, clamped to what the shop actually has.
+   * The same cap is enforced again on the server — this is only the friendly half.
+   */
+  function qtyOf(id) {
+    var item = itemById(id);
+    var max = item ? availableQty(item) : 1;
+    var input = document.querySelector('[data-qty="' + id + '"]');
+    var typed = input ? Math.floor(Number(input.value) || 1) : 1;
+    return Math.min(Math.max(1, max), Math.max(1, typed));
+  }
+
+  /** Show/clear the "only N available" note and pull the field back into range. */
+  function enforceQty(id) {
+    var item = itemById(id);
+    var input = document.querySelector('[data-qty="' + id + '"]');
+    var warn = document.querySelector('[data-warn="' + id + '"]');
+    if (!item || !input) return 1;
+    var max = availableQty(item);
+    var typed = Math.floor(Number(input.value) || 0);
+    var clamped = Math.min(Math.max(1, max), Math.max(1, typed));
+    if (warn) {
+      if (typed > max) {
+        warn.textContent = 'Only ' + max + ' available — asking for ' + max + '.';
+        warn.classList.remove('hidden');
+      } else {
+        warn.textContent = '';
+        warn.classList.add('hidden');
+      }
+    }
+    if (String(clamped) !== input.value) input.value = clamped;
+    return clamped;
+  }
+
+  function toggleSelect(id) {
+    if (Object.prototype.hasOwnProperty.call(selected, id)) delete selected[id];
+    else selected[id] = enforceQty(id);
+    renderItems();
+  }
+
+  function selectedIds() { return Object.keys(selected); }
+
+  function renderTray() {
+    var ids = selectedIds();
+    var tray = $('tray');
+    if (!ids.length) { tray.classList.add('hidden'); syncTrayHeight(); return; }
+    tray.classList.remove('hidden');
+    $('trayCount').textContent = ids.length + (ids.length === 1 ? ' item' : ' items');
+    $('trayNames').textContent = ids.map(function (id) {
+      var it = items.find(function (i) { return i.id === id; });
+      var q = selected[id] > 1 ? ' ×' + selected[id] : '';
+      return it ? it.name + q : '';
+    }).filter(Boolean).join(', ');
+    syncTrayHeight();
+  }
+
+  document.addEventListener('click', function (e) {
+    var selBtn = e.target.closest('[data-select]');
+    if (selBtn) return toggleSelect(selBtn.getAttribute('data-select'));
+  });
+
+  // Quantity edits: warn + clamp as they type, and keep the tray in step.
+  function onQtyEdit(e) {
+    var qtyInput = e.target.closest('[data-qty]');
+    if (!qtyInput) return;
+    var id = qtyInput.getAttribute('data-qty');
+    var value = enforceQty(id);
+    if (Object.prototype.hasOwnProperty.call(selected, id)) { selected[id] = value; renderTray(); }
+  }
+  document.addEventListener('input', onQtyEdit);
+  document.addEventListener('change', onQtyEdit);
+
+  $('search').addEventListener('input', renderItems);
+  $('categoryFilter').addEventListener('change', renderItems);
+  $('stockFilter').addEventListener('change', renderItems);
+  $('reloadBtn').addEventListener('click', loadItems);
+  $('clearSel').addEventListener('click', function () { selected = Object.create(null); renderItems(); });
+  $('requestSel').addEventListener('click', function () {
+    sendRequest(selectedIds(), $('requestSel'), $('trayNote').value.trim());
+  });
+
+  // ───────────────────────── send the request ─────────────────────────
+  function requestItemPayload(item, qty) {
+    var priced = itemPrice(item);
+    return {
+      itemId: item.id,
+      itemCode: item.itemNumber || item.sku || '',
+      name: item.name,
+      category: item.category || '',
+      unit: unitLabel(item),
+      karat: Number(item.karat) || 0,
+      weightGrams: Number(item.weightGrams) || 0,
+      quantity: qty,
+      // Only send a firm shelf price; an estimate is left for the shop to price.
+      price: priced && !priced.estimate ? Math.round(priced.value) : 0,
+      note: ''
+    };
+  }
+
+  async function sendRequest(ids, btn, note) {
+    if (!ids || !ids.length) return;
+    var payloadItems = ids.map(function (id) {
+      var it = items.find(function (i) { return i.id === id; });
+      if (!it) return null;
+      return requestItemPayload(it, Object.prototype.hasOwnProperty.call(selected, id) ? selected[id] : qtyOf(id));
+    }).filter(Boolean);
+    if (!payloadItems.length) return;
+
+    var label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    try {
+      var entry = await api(EP.requests, {
+        method: 'POST',
+        body: {
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          items: payloadItems,
+          note: note || ''
+        }
+      });
+      myRequests.unshift(entry);
+      ids.forEach(function (id) { delete selected[id]; });
+      $('trayNote').value = '';
+      renderItems();
+      renderMyRequests();
+      toast('Request ' + (entry.requestNumber || '') + ' sent — the shop has it under ' + customer.name + '.');
+      // Stock may have moved while the customer was choosing.
+      loadItems();
+    } catch (err) {
+      toast(err.message, true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
+  }
+
+  // ───────────────────────── my requests ─────────────────────────
+  async function loadMyRequests() {
+    try {
+      // On a public link the server only returns entries whose name AND phone
+      // match, so nobody can read another customer's list.
+      var path = SHOP
+        ? EP.requests + '?name=' + encodeURIComponent(customer.name) + '&phone=' + encodeURIComponent(customer.phone)
+        : EP.requests;
+      var data = await api(path);
+      myRequests = (data.requests || []).filter(function (r) {
+        var samePhone = customer.phone && String(r.customerPhone || '').replace(/\D/g, '') === customer.phone.replace(/\D/g, '');
+        var sameName = String(r.customerName || '').toLowerCase() === customer.name.toLowerCase();
+        return samePhone || sameName;
+      });
+      renderMyRequests();
+    } catch (e) { /* the list is a convenience; ignore failures */ }
+  }
+
+  function renderMyRequests() {
+    var box = $('myRequests');
+    if (!myRequests.length) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    $('reqList').innerHTML = myRequests.map(function (r) {
+      var when = r.createdAt ? new Date(r.createdAt).toLocaleString() : '';
+      var lines = (r.items || []).map(function (i) {
+        var bits = [];
+        if (i.itemCode || i.note) bits.push(i.itemCode || i.note);
+        if (i.category) bits.push(i.category);
+        if (Number(i.karat) > 0) bits.push(i.karat + 'K');
+        if (Number(i.weightGrams) > 0) bits.push(i.weightGrams + 'g');
+        bits.push('Qty ' + (Number(i.quantity) || 1));
+        return '<li>' + esc(i.name) + ' <span class="req-meta">' + esc(bits.join(' · ')) + '</span></li>';
+      }).join('');
+      // 'open' is how the shop app stores a request that has not been handled yet.
+      var statusText = String(r.status || 'open') === 'open' ? 'Pending' : String(r.status);
+      return '<div class="req">' +
+        '<div class="req-head">' +
+          '<span class="req-no">' + esc(r.requestNumber || 'Request') + '</span>' +
+          '<span class="status">' + esc(statusText) + '</span>' +
+        '</div>' +
+        '<div class="req-meta">' + esc(r.customerName || '') + ' · ' + esc(r.customerPhone || '') + (when ? ' · ' + esc(when) : '') + '</div>' +
+        (lines ? '<ul>' + lines + '</ul>' : '') +
+        (r.note ? '<div class="req-meta" style="margin-top:6px">Note: ' + esc(r.note) + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  syncTrayHeight();
+})();
+</script>
+</body>
+</html>

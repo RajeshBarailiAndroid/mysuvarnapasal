@@ -1,0 +1,151 @@
+/* ============================================================
+   UX improvements layer — loaded AFTER styles.css.
+   Additive only: overrides, no changes to the original stylesheet.
+   1) Clearer action buttons  2) Better focus visibility
+   3) Phone/tablet: top bar + slide-in menu instead of the huge
+      tile grid, hidden carousel, bigger touch targets,
+      no-zoom inputs, smoother tables.
+   ============================================================ */
+
+/* ── 1. Edit / Delete: real buttons instead of underlined links ── */
+.link-btn {
+  text-decoration: none;
+  border: 1px solid rgba(180, 140, 40, 0.45);
+  border-radius: 8px;
+  padding: 0.3rem 0.65rem;
+  background: rgba(212, 175, 55, 0.08);
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.link-btn:hover { background: rgba(212, 175, 55, 0.18); }
+.link-btn.danger {
+  border-color: rgba(220, 60, 60, 0.4);
+  background: rgba(220, 60, 60, 0.06);
+}
+.link-btn.danger:hover { background: rgba(220, 60, 60, 0.14); }
+.data-table .actions-col .link-btn + .link-btn { margin-left: 0.3rem; }
+
+/* ── 2. Keyboard/tap focus clarity ── */
+:focus-visible {
+  outline: 2px solid var(--gold-dark, #b8860b);
+  outline-offset: 2px;
+}
+
+/* ── 3. Mobile top bar + drawer (injected by ux-improvements.js) ── */
+.ux-topbar, .ux-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  /* The decorative carousel eats the top of every screen on phones. */
+  #home-hero { display: none !important; }
+
+  /* Sticky compact top bar */
+  .ux-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    padding: calc(0.55rem + env(safe-area-inset-top)) 0.85rem 0.55rem;
+    background: linear-gradient(180deg, var(--sidebar-bg-accent, #174a35), var(--sidebar-bg, #0f2e22));
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  }
+  .ux-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    cursor: pointer;
+  }
+  .ux-menu-btn svg { width: 22px; height: 22px; }
+  .ux-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+  .ux-topbar-brand img { width: 30px; height: 30px; flex: none; }
+  .ux-topbar-title {
+    font-weight: 700;
+    font-size: 1.02rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Sidebar becomes a slide-in drawer (replaces the full-screen tile grid) */
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(82vw, 320px);
+    z-index: 80;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    overflow-y: auto;
+    border-right: 1px solid var(--sidebar-border, rgba(255,255,255,0.12));
+    border-bottom: 0;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35);
+    padding: calc(0.85rem + env(safe-area-inset-top)) 0.85rem calc(0.85rem + env(safe-area-inset-bottom));
+  }
+  body.ux-nav-open .sidebar { transform: translateX(0); }
+  body.ux-nav-open { overflow: hidden; }
+
+  .ux-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+  }
+  body.ux-nav-open .ux-backdrop { opacity: 1; pointer-events: auto; }
+
+  /* Inside the drawer: a clean vertical list with 48px touch rows
+     (overrides the old 3-column tile grid) */
+  .sidebar .nav { flex-direction: column; flex-wrap: nowrap; gap: 0.2rem; }
+  .nav-btn,
+  .settings-nav-btn {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.7rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+  }
+  .nav-icon { width: 24px; height: 24px; }
+
+  /* ── Touch comfort ── */
+  .btn { min-height: 44px; }
+  .btn-xs, .btn-sm { min-height: 38px; }
+  .link-btn { min-height: 40px; padding: 0.45rem 0.8rem; }
+
+  /* iPhones zoom the page when a focused input's font is under 16px —
+     keep form fields at 16px on phones so the screen stays put. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Tables: smooth swipe-scrolling, slightly tighter cells, and a hint
+     that there is more to the side. */
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+  .data-table td, .data-table th { padding: 0.55rem 0.6rem; }
+}
+
+/* Desktop: never show the injected mobile chrome */
+@media (min-width: 769px) {
+  .ux-topbar, .ux-backdrop { display: none !important; }
+}

@@ -1,0 +1,13 @@
+{
+  "source": "shop photos",
+  "images": [
+    { "src": "/images/bg/gold-01.jpg", "alt": "Radiant Diamond-Set Gold Ring" },
+    { "src": "/images/bg/gold-02.jpg", "alt": "Traditional Kundan Necklace Set" },
+    { "src": "/images/bg/gold-03.jpg", "alt": "Classic Gold Ring Collection" },
+    { "src": "/images/bg/gold-04.jpg", "alt": "Heritage Gold Bangle" },
+    { "src": "/images/bg/gold-05.jpg", "alt": "Designer Stone Gold Ring" },
+    { "src": "/images/bg/gold-06.jpg", "alt": "Heart Pendant Necklace" },
+    { "src": "/images/bg/gold-07.jpg", "alt": "Rose Gold Heart Pendant" },
+    { "src": "/images/bg/gold-08.jpg", "alt": "Gold Jewellery Collection" }
+  ]
+}

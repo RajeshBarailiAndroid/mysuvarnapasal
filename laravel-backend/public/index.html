@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Suvarnapasal — POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="ux-improvements.css" />
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('subarnapasal.theme');
+          if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        } catch (_) { /* ignore */ }
+      })();
+    </script>
+    <style>
+      body.auth-pending .app { opacity: 0; pointer-events: none; }
+      body.auth-ready .app { opacity: 1; }
+      .app-loading { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.85rem; background: var(--loader-bg, #f3f4f6); color: var(--loader-text, #111827); transition: opacity 0.25s ease, visibility 0s linear 0.25s; }
+      body.auth-ready .app-loading { opacity: 0; visibility: hidden; pointer-events: none; }
+      .app-loading p { margin: 0; font: 500 0.95rem/1.4 system-ui, sans-serif; }
+    </style>
+      <style id="hide-aana-style">
+      /* Aana removed: 1 tola = 100 laal */
+      label:has(> input[name="weightAana"]),
+      label:has(> input[name="customWeightAana"]),
+      label:has(> input[name="convWeightAana"]),
+      label:has(> input[name="customJartiAana"]),
+      .weight-panel-aana, .order-jarti-aana-wrap { display: none !important; }
+    </style>
+</head>
+  <body class="auth-pending">
+    <div id="app-loading" class="app-loading" aria-live="polite" aria-busy="true">
+      <img src="logo.svg" width="48" height="48" alt="" />
+      <p data-i18n="appLoading">Loading…</p>
+    </div>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="logo.svg" class="brand-logo" width="36" height="36" alt="Suvarnapasal" />
+          <strong id="brand-shop-name">Suvarnapasal</strong>
+        </div>
+        <nav class="nav" aria-label="Main">
+          <button type="button" class="nav-btn is-active" data-view="dashboard">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+            <span data-i18n="navDashboard">Dashboard</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="pos">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+            <span data-i18n="navPOS">POS</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="inventory">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span>
+            <span data-i18n="navInventory">Inventory</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="orders">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span>
+            <span data-i18n="navOrders">Orders</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="customers">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <span data-i18n="navCustomers">Customers</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="repairs">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+            <span data-i18n="navRepairs">Repairs</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="requests">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg></span>
+            <span data-i18n="navRequests">Requested</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="schemes">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+            <span data-i18n="navSchemes">Schemes</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="karigar">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
+            <span>Karigar</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="options">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></span>
+            <span>Records</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="reports">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span>
+            <span data-i18n="navReports">Reports</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="expenses">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg></span>
+            <span data-i18n="navExpenses">Expenses</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="calculator">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h2M16 18h0"/></svg></span>
+            <span data-i18n="navCalculator">Calculator</span>
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="metal-rates">
+            <h3 data-i18n="liveMetalRates">Metal Rates</h3>
+            <p id="metal-rates-body" class="metal-rates-body">
+              <span class="metal-rates-warning" data-i18n="metalApiWarning">No rate set yet. Add your gold and silver rates in Settings.</span>
+            </p>
+            <p id="metal-rate-gold" class="metal-rate-detail" hidden>Gold: —</p>
+            <p id="metal-rate-silver" class="metal-rate-detail" hidden>Silver: —</p>
+            <button type="button" class="rate-edit" data-view="settings" data-i18n="editRates">Edit rates in Settings</button>
+          </div>
+          <div class="sidebar-actions">
+            <button type="button" class="settings-nav-btn settings-icon-only" data-view="settings" title="Settings" aria-label="Settings">
+              <span class="nav-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+              <span data-i18n="navSettings">Settings</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="workspace" id="workspace">
+        <div id="home-hero" class="home-hero" hidden aria-roledescription="carousel"></div>
+        <main class="main">
+          <!-- POS -->
+          <!-- Dashboard -->
+          <section id="view-dashboard" class="view" hidden>
+            <div id="dashboard-root"><p class="panel-desc" data-i18n="dashLoading">Loading dashboard…</p></div>
+          </section>
+
+          <section id="view-pos" class="view pos-view">
+            <div class="pos-layout">
+              <div class="pos-main">
+            <div class="pos-topbar">
+              <button type="button" class="btn btn-outline btn-icon" id="pos-theme-toggle" title="Theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+              </button>
+            </div>
+
+            <section class="pos-block">
+              <h2 class="pos-block-title" data-i18n="customerSection">Customer</h2>
+              <div class="pos-customer-toolbar">
+                <div class="search-field pos-customer-search-wrap">
+                  <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  <input type="search" id="pos-customer-search" data-i18n-placeholder="posCustomerSearch" placeholder="Search existing customer..." autocomplete="off" />
+                  <div id="customer-suggestions" class="customer-suggestions" hidden></div>
+                </div>
+                <button type="button" class="btn btn-outline btn-xs add-customer-pos-btn" id="add-customer-btn">
+                  <span data-i18n="addCustomer">+ Add New Customer</span>
+                </button>
+              </div>
+              <div class="pos-customer-pan-row">
+                <input type="text" id="pos-customer-pan" data-i18n-placeholder="customerPanPh" placeholder="Customer PAN / VAT No. (optional)" maxlength="20" autocomplete="off" />
+              </div>
+              <div id="pos-customer-display" class="pos-customer-display" hidden>
+                <div class="pos-customer-display-head">
+                  <button type="button" class="icon-btn pos-customer-clear-btn" id="clear-pos-customer-btn" data-i18n-title="clearCustomer" title="Clear customer" aria-label="Clear customer">×</button>
+                </div>
+                <div class="pos-customer-display-row">
+                  <span class="pos-customer-display-label" data-i18n="customerName">Customer name</span>
+                  <strong id="pos-customer-display-name"></strong>
+                </div>
+                <div class="pos-customer-display-row">
+                  <span class="pos-customer-display-label" data-i18n="customerPhone">Phone</span>
+                  <strong id="pos-customer-display-phone">—</strong>
+                </div>
+                <div class="pos-customer-display-row">
+                  <span class="pos-customer-display-label" data-i18n="email">Email</span>
+                  <strong id="pos-customer-display-email">—</strong>
+                </div>
+                <div class="pos-customer-display-row">
+                  <span class="pos-customer-display-label" data-i18n="address">Address</span>
+                  <strong id="pos-customer-display-address">—</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="pos-block">
+              <h2 class="pos-block-title" data-i18n="productCatalog">Product Catalog</h2>
+              <div class="catalog-toolbar">
+                <div class="search-field catalog-search">
+                  <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  <input type="search" id="pos-search" data-i18n-placeholder="posSearchShort" placeholder="Search by name, SKU, descrip" />
+                </div>
+                <select id="pos-filter-category" class="catalog-select">
+                  <option value="" data-i18n-option="allCategories">All categories</option>
+                </select>
+                <select id="pos-sort" class="catalog-select">
+                  <option value="name" data-i18n-option="sortName">Name (A–Z)</option>
+                  <option value="price" data-i18n-option="sortPrice">Price</option>
+                </select>
+              </div>
+              <div class="pos-catalog-meta">
+                <span id="pos-item-count" class="pos-item-count"></span>
+              </div>
+              <div id="pos-product-grid" class="pos-product-list catalog-grid"></div>
+            </section>
+              </div>
+
+              <div class="pos-sidebar" id="pos-sidebar">
+                <aside class="sale-panel" id="sale-panel">
+                  <div class="sale-panel-head">
+                    <h2 data-i18n="currentSale">Current Sale</h2>
+                    <button type="button" class="btn btn-outline btn-xs" id="add-custom-item">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                      <span data-i18n="addCustomItem">Add Custom Item</span>
+                    </button>
+                  </div>
+                  <div id="sale-customer" class="sale-customer" hidden></div>
+                  <div id="cart-lines" class="cart-lines"><p class="cart-empty" data-i18n="cartEmpty">Your cart is empty.</p></div>
+                  <div class="sale-summary">
+                    <div class="summary-row"><span data-i18n="subtotal">Subtotal</span><span id="cart-subtotal">$0.00</span></div>
+                    <div class="summary-row"><span data-currency-field="discount">Discount</span><input type="number" id="cart-discount" min="0" value="0" step="0.01" /></div>
+                    <div class="summary-row summary-row-tax">
+                      <div class="tax-row-label">
+                        <span id="cart-tax-label" data-i18n="vat">VAT</span>
+                        <select id="cart-tax-type" class="tax-type-select" aria-label="Tax type">
+                          <option value="percent" data-i18n-option="taxPercent">%</option>
+                          <option value="amount" data-i18n-option="taxAmount">Amount</option>
+                        </select>
+                      </div>
+                      <div class="tax-value-stepper">
+                        <button type="button" class="tax-step-btn" id="cart-tax-dec" aria-label="Decrease VAT">−</button>
+                        <input type="number" id="cart-tax-value" min="0" step="0.1" value="0" aria-label="Tax value" />
+                        <button type="button" class="tax-step-btn" id="cart-tax-inc" aria-label="Increase VAT">+</button>
+                      </div>
+                    </div>
+                    <div class="summary-row" id="cart-tax-applied-row" hidden>
+                      <span id="cart-tax-applied-label">Tax</span>
+                      <span id="cart-tax-applied">$0.00</span>
+                    </div>
+                    <div class="summary-row summary-row-skillfee" id="pos-skillfee-row">
+                      <label class="skillfee-toggle"><input type="checkbox" id="pos-skill-fee" /> <span data-i18n="skillFeeLabel">0.5% Skill Promotion Fee</span></label>
+                      <span id="cart-skillfee">—</span>
+                    </div>
+                    <div class="pos-tradein-block" id="pos-tradein-block">
+                      <button type="button" class="btn btn-outline btn-xs" id="toggle-old-gold-btn" data-i18n="addOldGold">+ Old-gold trade-in</button>
+                      <div id="old-gold-fields" class="old-gold-fields" hidden>
+                        <div class="summary-row"><span data-i18n="ogWeight">Old gold weight (g)</span><input type="number" id="og-weight" min="0" step="0.01" placeholder="0" /></div>
+                        <div class="summary-row"><span data-i18n="ogKarat">Karat</span><input type="number" id="og-karat" min="1" max="24" step="1" value="22" /></div>
+                        <div class="summary-row"><span data-currency-field="ogRate">Buy rate / tola</span><input type="number" id="og-rate" min="0" step="0.01" placeholder="0" /></div>
+                        <button type="button" class="btn btn-outline btn-xs" id="clear-old-gold-btn" data-i18n="removeOldGold">Remove trade-in</button>
+                      </div>
+                      <div class="summary-row" id="cart-oldgold-row" hidden>
+                        <span data-i18n="oldGoldCredit">Old-gold credit</span>
+                        <span id="cart-oldgold-credit">—</span>
+                      </div>
+                      <div class="summary-row" id="pos-scheme-row">
+                        <span data-i18n="schemeRedeem">Redeem scheme</span>
+                        <select id="pos-scheme-select" class="pay-method-select" aria-label="Redeem gold scheme">
+                          <option value="" data-i18n-option="schemeNone">None</option>
+                        </select>
+                      </div>
+                      <div class="summary-row" id="cart-scheme-row" hidden>
+                        <span data-i18n="schemeCredit">Scheme credit</span>
+                        <span id="cart-scheme-credit">—</span>
+                      </div>
+                    </div>
+                    <div class="summary-row total"><span data-i18n="total">Total</span><span id="cart-total">$0.00</span></div>
+                    <div class="sale-payment">
+                      <div class="summary-row">
+                        <span data-i18n="paymentMethod">Payment method</span>
+                        <select id="cart-payment-method" class="pay-method-select" aria-label="Payment method">
+                          <option value="cash" data-i18n-option="payCash">Cash</option>
+                          <option value="esewa" data-i18n-option="payEsewa">eSewa</option>
+                          <option value="khalti" data-i18n-option="payKhalti">Khalti</option>
+                          <option value="card" data-i18n-option="payCard">Card</option>
+                          <option value="bank" data-i18n-option="payBank">Bank transfer</option>
+                          <option value="credit" data-i18n-option="payCredit">Credit (due)</option>
+                        </select>
+                      </div>
+                      <div class="summary-row" id="cart-received-row">
+                        <span data-i18n="amountReceived">Amount received</span>
+                        <input type="number" id="cart-received" min="0" step="0.01" placeholder="0" aria-label="Amount received" />
+                      </div>
+                      <div class="summary-row summary-row-change" id="cart-change-row" hidden>
+                        <span id="cart-change-label" data-i18n="changeDue">Change due</span>
+                        <span id="cart-change">—</span>
+                      </div>
+                      <div class="summary-row" id="cart-payref-row" hidden>
+                        <span id="cart-payref-label" data-i18n="chequeNo">Cheque no.</span>
+                        <input type="text" id="cart-payref" maxlength="40" data-i18n-placeholder="payRefPh" placeholder="Reference no. (optional)" aria-label="Payment reference" />
+                      </div>
+                    </div>
+                    <details class="pos-bill-details" id="pos-bill-details">
+                      <summary data-i18n="billDetailsSection">Guarantee bill details</summary>
+                      <div class="pos-bill-details-grid">
+                        <label><span data-i18n="buyerIdNo">Buyer's identity no.</span><input type="text" id="pos-bill-idno" maxlength="40" autocomplete="off" /></label>
+                        <label><span data-i18n="goldsmithName">Goldsmith (Kaligadh)</span><input type="text" id="pos-bill-kaligadh" maxlength="60" autocomplete="off" /></label>
+                        <label><span data-i18n="orderDateLabel">Order date</span><input type="date" id="pos-bill-orderdate" /></label>
+                        <label><span data-i18n="deliveryDateLabel">Delivery date</span><input type="date" id="pos-bill-deliverydate" /></label>
+                        <label><span data-i18n="oldWeightLabel">Old weight (g)</span><input type="number" id="pos-bill-oldweight" min="0" step="0.001" placeholder="0" /></label>
+                        <label><span data-i18n="addWeightLabel">Add weight (g)</span><input type="number" id="pos-bill-addweight" min="0" step="0.001" placeholder="0" /></label>
+                      </div>
+                    </details>
+                    <div class="sale-actions">
+                      <button type="button" class="btn btn-outline" id="cancel-sale">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        <span data-i18n="cancelSale">Cancel Sale</span>
+                      </button>
+                      <button type="button" class="btn btn-gold" id="checkout-btn" data-i18n="checkout">Checkout</button>
+                    </div>
+                  </div>
+                </aside>
+                <div class="quick-suggestions" id="quick-suggestions" hidden>
+                  <strong class="quick-suggestions-title" data-i18n="quickAddTitle">⚡ Quick add</strong>
+                  <div class="quick-suggestions-chips" id="quick-suggestions-chips"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Inventory -->
+          <section id="view-inventory" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="invPageTitle">Inventory Management</h1>
+                <p class="page-subtitle" data-i18n="invPageDesc">Track and manage your gold ornament stock.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline btn-sm btn-icon" id="refresh-inventory" data-i18n-title="refreshList" title="Refresh List" aria-label="Refresh inventory list">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+                <button type="button" class="btn btn-gold btn-sm" id="add-item-btn">
+                  <span data-i18n="addNewItem">+ Add New Item</span>
+                </button>
+              </div>
+            </header>
+            <div class="filter-bar">
+              <input type="search" id="search-items" placeholder="Search by name, item no. (ITM-0001), SKU…" />
+            </div>
+            <article class="data-card">
+              <div id="inventory-table" class="table-wrap"></div>
+              <div class="table-footer">
+                <span id="inventory-row-count" data-i18n="rowsSelected">0 of 0 row(s) selected</span>
+                <div class="pagination">
+                  <button type="button" class="btn btn-outline btn-sm" disabled data-i18n="previous">Previous</button>
+                  <button type="button" class="btn btn-outline btn-sm" disabled data-i18n="next">Next</button>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <!-- Orders -->
+          <section id="view-orders" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="ordersPageTitle">Order Management</h1>
+                <p class="page-subtitle" data-i18n="ordersPageDesc">View, manage, and track customer orders and transactions.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline btn-sm btn-icon" id="refresh-orders" title="Refresh">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+                <button type="button" class="btn btn-gold btn-sm" id="add-order-btn">
+                  <span data-i18n="addNewOrder">+ Add New Order</span>
+                </button>
+              </div>
+            </header>
+            <div class="filter-bar">
+              <input type="search" id="search-orders" data-i18n-placeholder="searchOrders" placeholder="Search by Receipt #, Customer, Item, or Status..." />
+            </div>
+            <div class="order-group-tabs" id="order-group-tabs">
+              <button type="button" class="order-group-tab is-active" data-order-group="new" data-i18n="orderNew">New orders</button>
+              <button type="button" class="order-group-tab" data-order-group="progress" data-i18n="orderProgress">In progress</button>
+              <button type="button" class="order-group-tab" data-order-group="completed" data-i18n="orderCompleted">Complete</button>
+            </div>
+            <article class="data-card orders-card">
+              <div id="orders-content" class="orders-content"></div>
+              <div class="table-footer table-footer-simple">
+                <span id="orders-row-count" data-i18n="rowsSelected">0 of 0 row(s) selected</span>
+              </div>
+            </article>
+          </section>
+
+          <!-- Reports -->
+          <section id="view-reports" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="reportsPageTitle">Reports &amp; Analytics</h1>
+                <p class="page-subtitle" data-i18n="reportsPageDesc">Gain insights into your store's performance.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline" id="refresh-reports">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  <span data-i18n="refreshData">Refresh Data</span>
+                </button>
+              </div>
+            </header>
+            <div class="reports-controls">
+              <div class="date-range">
+                <label><span data-i18n="startDate">Start Date</span><input type="date" id="report-start" /></label>
+                <label><span data-i18n="endDate">End Date</span><input type="date" id="report-end" /></label>
+              </div>
+              <div class="report-tabs" id="report-tabs">
+                <button type="button" class="report-tab is-active" data-tab="sales" data-i18n="salesReport">Sales Report</button>
+                <button type="button" class="report-tab" data-tab="invoices" data-i18n="invoicesReport">Invoices</button>
+                <button type="button" class="report-tab" data-tab="inventory" data-i18n="inventoryReport">Inventory Report</button>
+                <button type="button" class="report-tab" data-tab="customer" data-i18n="customerReport">Customer Report</button>
+                <button type="button" class="report-tab" data-tab="karigar">Karigar Report</button>
+                <button type="button" class="report-tab" data-tab="goldledger">Gold Ledger</button>
+              </div>
+            </div>
+            <div class="report-section-head">
+              <h2 id="report-section-title" data-i18n="salesOverview">Sales &amp; Profitability Overview</h2>
+              <button type="button" class="btn btn-outline btn-sm" id="export-report-btn" data-i18n="exportSummary">Export Financial Summary</button>
+            </div>
+            <div class="kpi-grid" id="stats-grid"></div>
+            <div id="report-body"></div>
+          </section>
+
+          <!-- Customers -->
+          <section id="view-customers" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="customersPageTitle">Customer Management</h1>
+                <p class="page-subtitle" data-i18n="customersPageDesc">Manage your customer details and view their history.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline btn-sm btn-icon" id="refresh-customers" title="Refresh">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+                <button type="button" class="btn btn-gold btn-sm" id="add-customer-page-btn">
+                  <span data-i18n="addCustomerBtn">Add New Customer</span>
+                </button>
+              </div>
+            </header>
+            <div class="filter-bar stacked">
+              <input type="search" id="search-customers" data-i18n-placeholder="searchCustomer" placeholder="Search by name or phone..." />
+              <input type="search" id="filter-customers" data-i18n-placeholder="filterByName" placeholder="Filter by name..." />
+            </div>
+            <article class="data-card">
+              <div id="customers-table" class="table-wrap"></div>
+              <div class="table-footer">
+                <span id="customers-row-count" data-i18n="rowsSelected">0 of 0 row(s) selected</span>
+              </div>
+            </article>
+          </section>
+
+          <!-- Karigar -->
+          <section id="view-karigar" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1>Karigar Management</h1>
+                <p class="page-subtitle">Craftsmen profiles, gold issued/returned with wastage, assigned orders, and old-gold buy-back.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline btn-sm btn-icon" id="refresh-karigar" title="Refresh">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+                <button type="button" class="btn btn-gold btn-sm" id="add-karigar-btn">+ Add Karigar</button>
+              </div>
+            </header>
+            <div class="order-group-tabs" id="karigar-tabs">
+              <button type="button" class="order-group-tab is-active" data-karigar-tab="karigar">Craftsmen</button>
+              <button type="button" class="order-group-tab" data-karigar-tab="ledger">Gold Ledger</button>
+              <button type="button" class="order-group-tab" data-karigar-tab="oldgold">Old Gold Buy-back</button>
+            </div>
+            <article class="data-card" id="karigar-tab-karigar">
+              <div class="panel-head-row karigar-panel-head">
+                <div>
+                  <strong>Craftsmen directory</strong>
+                  <p class="karigar-panel-desc">Balance = Issued − Returned − Wastage. Positive balance means gold still with the karigar.</p>
+                </div>
+              </div>
+              <div id="karigar-summary" class="karigar-summary"></div>
+              <div id="karigar-detail" class="karigar-detail" hidden></div>
+              <div id="karigar-table" class="table-wrap"></div>
+            </article>
+            <article class="data-card" id="karigar-tab-ledger" hidden>
+              <div class="panel-head-row karigar-panel-head">
+                <div>
+                  <strong>Gold movement ledger</strong>
+                  <p class="karigar-panel-desc">Every issue and return of gold to/from karigar, with karat, weight, and wastage on returns.</p>
+                </div>
+                <label class="karigar-filter-label">
+                  <span>Filter by karigar</span>
+                  <select id="ledger-karigar-filter">
+                    <option value="">All karigar</option>
+                  </select>
+                </label>
+              </div>
+              <div id="gold-ledger-table" class="table-wrap"></div>
+            </article>
+            <article class="data-card" id="karigar-tab-oldgold" hidden>
+              <div class="panel-head-row karigar-panel-head">
+                <div>
+                  <strong>Old gold buy-back</strong>
+                  <p class="karigar-panel-desc">Record customer old-gold purchases (weight, karat, buy rate). Separate from karigar issue/return.</p>
+                </div>
+                <button type="button" class="btn btn-gold btn-sm" id="add-old-gold-btn">+ Record Old Gold</button>
+              </div>
+              <div id="old-gold-table" class="table-wrap"></div>
+            </article>
+          </section>
+
+          <!-- Records -->
+          <section id="view-options" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1>Records</h1>
+                <p class="page-subtitle">Track credit (udharo), borrowed gold/money, and deposits — with partial payment history.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-gold btn-sm" id="add-option-btn">+ Add Record</button>
+              </div>
+            </header>
+            <div class="options-search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;color:var(--muted)"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="search" id="options-search" class="input" placeholder="Search by name…" autocomplete="off" style="border:none;box-shadow:none;padding:0;background:transparent;flex:1;font-size:0.9rem">
+            </div>
+            <div id="options-stats" class="options-stats-row"></div>
+            <div class="order-group-tabs" id="options-filter-tabs">
+              <button type="button" class="order-group-tab is-active" data-options-tab="all">All</button>
+              <button type="button" class="order-group-tab" data-options-tab="credit">Credit</button>
+              <button type="button" class="order-group-tab" data-options-tab="borrow">Borrow</button>
+              <button type="button" class="order-group-tab" data-options-tab="deposit">Deposit</button>
+            </div>
+            <article class="data-card" style="padding:0">
+              <div id="options-table" class="table-wrap">
+                <div class="table-empty"><p>Click <strong>+ Add Record</strong> to record your first entry.</p></div>
+              </div>
+            </article>
+          </section>
+
+          <!-- Expenses -->
+          <section id="view-expenses" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="expensesPageTitle">Log &amp; View Expenses</h1>
+                <p class="page-subtitle" data-i18n="expensesPageDesc">Manually enter your store's operational costs and view expense history.</p>
+              </div>
+            </header>
+            <article class="panel expense-form-card">
+              <h2 class="gold-heading" data-i18n="logNewExpense">Log New Expense</h2>
+              <p class="panel-desc" data-i18n="logExpenseDesc">Fill out the form below to record a new expense.</p>
+              <form id="expense-form" class="expense-form">
+                <label><span data-i18n="expenseDate">Expense Date</span><input name="date" type="date" required /></label>
+                <label><span data-i18n="category">Category</span>
+                  <select name="category" required>
+                    <option value="">— Select Category —</option>
+                    <option>Rent / Lease</option>
+                    <option>Salaries</option>
+                    <option>Electricity / Utilities</option>
+                    <option>Raw Materials</option>
+                    <option>Marketing &amp; Advertising</option>
+                    <option>Packaging</option>
+                    <option>Security</option>
+                    <option>Insurance</option>
+                    <option>Tax / VAT</option>
+                    <option>Repairs &amp; Maintenance</option>
+                    <option>Transport &amp; Delivery</option>
+                    <option>Miscellaneous</option>
+                  </select>
+                </label>
+                <label><span data-i18n="description">Description</span><input name="description" data-i18n-placeholder="expenseDescPh" placeholder="Brief description (e.g. July rent, Staff payroll)" required /></label>
+                <label><span data-currency-field="amount">Amount (NPR)</span><input name="amount" type="number" min="0" step="1" required /></label>
+                <button type="submit" class="btn btn-gold" data-i18n="saveExpense">Save Expense</button>
+              </form>
+            </article>
+            <article class="panel">
+              <div class="panel-head-row">
+                <div>
+                  <h2 data-i18n="expenseHistory">Logged Expense History</h2>
+                  <p class="panel-desc" data-i18n="expenseHistoryDesc">View, filter, edit, or delete your past expenses.</p>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="refresh-expenses" data-i18n="refreshList">Refresh List</button>
+              </div>
+              <div class="date-range compact">
+                <label><span data-i18n="startDate">Start Date</span><input type="date" id="expense-start" /></label>
+                <label><span data-i18n="endDate">End Date</span><input type="date" id="expense-end" /></label>
+              </div>
+              <p class="expense-total"><span data-i18n="totalExpensesPeriod">Total Expenses for Selected Period:</span> <strong id="expense-total">$0.00</strong></p>
+              <div class="filter-bar">
+                <input type="search" id="filter-expenses" data-i18n-placeholder="filterCategory" placeholder="Filter by category..." />
+              </div>
+              <div id="expense-category-summary" hidden></div>
+              <div id="expenses-table" class="table-wrap"></div>
+              <div class="table-footer">
+                <span id="expenses-row-count" data-i18n="rowsSelected">0 of 0 row(s) selected</span>
+              </div>
+            </article>
+          </section>
+
+          <!-- Calculator -->
+          <section id="view-calculator" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="calculatorPageTitle">Calculator</h1>
+                <p class="page-subtitle" data-i18n="calculatorPageDesc">Convert weight units and calculate gold or silver price from settings rates.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline btn-sm btn-icon" id="open-quick-calc-btn" data-i18n-title="openQuickCalc" title="Calculator" aria-label="Calculator">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h2M16 18h0"/></svg>
+                </button>
+              </div>
+            </header>
+
+            <article class="panel gold-calc-card">
+              <h2 data-i18n="goldUnitConversion">Unit conversion</h2>
+              <p class="form-hint" data-i18n="goldUnitConversionDesc">Enter weight in grams or tola / aana / laal to see the other units.</p>
+              <ul class="gold-unit-ref-list">
+                <li data-i18n="calcRefTolaGrams">1 Tola = 11.664 grams</li>
+                <li data-i18n="calcRefTolaAana">1 Tola = 100 Laal</li>
+                <li data-i18n="calcRefAanaLaal">1 g ≈ 8.573 Laal</li>
+                <li data-i18n="calcRefTolaLaal">1 Tola = 100 Laal</li>
+              </ul>
+
+              <div class="weight-entry form-grid gold-conv-weight" data-weight-prefix="conv" id="gold-conv-weight-entry">
+                <label class="span-2"><span data-i18n="calcConvInputUnit">Input unit</span>
+                  <select name="convWeightUnit" class="weight-unit-select">
+                    <option value="grams" data-i18n-option="weightUnitGrams">Grams</option>
+                    <option value="tola" data-i18n-option="weightUnitTola">Tola / Laal</option>
+                  </select>
+                </label>
+                <label class="weight-panel-grams"><span data-i18n="weightGrams">Weight (grams)</span><input name="convWeightGrams" type="number" min="0" step="any" /></label>
+                <label class="weight-panel-tola" hidden><span data-i18n="weightTola">Tola</span><input name="convWeightTola" type="number" min="0" step="any" /></label>
+                <label class="weight-panel-aana" hidden><span data-i18n="weightAana">Aana</span><input name="convWeightAana" type="number" min="0" max="15" step="1" /></label>
+                <label class="weight-panel-laal" hidden><span data-i18n="weightLaal">Laal</span><input name="convWeightLaal" type="number" min="0" step="any" /></label>
+              </div>
+
+              <div id="gold-conversion-results" class="gold-calc-results gold-conv-results" aria-live="polite"></div>
+
+              <div class="gold-calc-price-section">
+                <div class="form-grid gold-price-calc-form">
+                  <label class="span-2"><span data-i18n="calcMetal">Metal</span>
+                    <select id="calc-metal">
+                      <option value="gold" data-i18n-option="calcMetalGold">Gold</option>
+                      <option value="silver" data-i18n-option="calcMetalSilver">Silver</option>
+                    </select>
+                  </label>
+                  <label class="span-2" id="calc-price-type-wrap"><span data-i18n="calcPriceType">Price type</span>
+                    <select id="calc-price-type">
+                      <option value="sell" data-i18n-option="calcPriceSell">Sell price</option>
+                      <option value="buy" data-i18n-option="calcPriceBuy">Buy price</option>
+                      <option value="buy2" data-i18n-option="calcPriceBuy2">Custom buy price</option>
+                    </select>
+                  </label>
+                  <label class="span-2"><span data-i18n="calcRateUnit">Rate unit</span>
+                    <select id="gold-calc-rate-unit" disabled>
+                      <option value="tola" data-i18n-option="calcRatePerTola">Per tola</option>
+                      <option value="gram" data-i18n-option="calcPerGram" selected>Per gram</option>
+                    </select>
+                  </label>
+                  <label class="span-2">
+                    <span id="gold-calc-rate-label" data-currency-field="goldRateGram">Gold rate per gram</span>
+                    <input id="gold-calc-rate" type="number" min="0" step="0.01" />
+                  </label>
+                  <label class="span-2"><span data-currency-field="makingCharge">Making charge</span><input id="gold-calc-making-charge" type="number" min="0" step="any" value="0" /></label>
+                </div>
+                <div id="gold-price-result" class="gold-price-result" aria-live="polite"></div>
+              </div>
+            </article>
+          </section>
+
+          <!-- Settings -->
+          <!-- Repairs -->
+          <section id="view-repairs" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="repairsPageTitle">Repair Jobs</h1>
+                <p class="page-subtitle" data-i18n="repairsPageDesc">Track customer repair jobs from intake to delivery.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-gold" id="add-repair-btn" data-i18n="addRepair">+ New Repair</button>
+              </div>
+            </header>
+            <div class="reports-controls">
+              <div class="report-tabs" id="repair-status-tabs">
+                <button type="button" class="order-group-tab is-active" data-repair-status="" data-i18n="allStatuses">All</button>
+                <button type="button" class="order-group-tab" data-repair-status="received" data-i18n="repairReceived">Received</button>
+                <button type="button" class="order-group-tab" data-repair-status="in_progress" data-i18n="repairInProgress">In progress</button>
+                <button type="button" class="order-group-tab" data-repair-status="ready" data-i18n="repairReady">Ready</button>
+                <button type="button" class="order-group-tab" data-repair-status="delivered" data-i18n="repairDelivered">Delivered</button>
+              </div>
+            </div>
+            <div id="repairs-table" class="table-wrap"></div>
+          </section>
+
+
+          <!-- Requested items -->
+          <section id="view-requests" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="requestsPageTitle">Requested Items</h1>
+                <p class="page-subtitle" data-i18n="requestsPageDesc">What customers have asked for but you did not have in stock.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-outline btn-sm btn-icon" id="refresh-requests" title="Refresh">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+                <button type="button" class="btn btn-outline" id="customer-link-btn" data-i18n="customerLinkBtn">Customer link</button>
+                <button type="button" class="btn btn-gold" id="add-request-btn" data-i18n="addRequest">+ New Request</button>
+              </div>
+            </header>
+            <div class="filter-bar">
+              <input type="search" id="search-requests" data-i18n-placeholder="searchRequests" placeholder="Search by customer, phone, or item..." />
+            </div>
+            <div class="reports-controls">
+              <div class="report-tabs" id="request-status-tabs">
+                <button type="button" class="order-group-tab is-active" data-request-status-filter="open" data-i18n="requestOpen">Pending</button>
+                <button type="button" class="order-group-tab" data-request-status-filter="fulfilled" data-i18n="requestFulfilled">Fulfilled</button>
+                <button type="button" class="order-group-tab" data-request-status-filter="cancelled" data-i18n="requestCancelled">Cancelled</button>
+                <button type="button" class="order-group-tab" data-request-status-filter="" data-i18n="allStatuses">All</button>
+              </div>
+              <span class="panel-desc" id="requests-open-count"></span>
+            </div>
+            <div id="requests-table" class="table-wrap"></div>
+          </section>
+
+          <!-- Gold savings schemes -->
+          <section id="view-schemes" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="schemesPageTitle">Gold Savings Schemes</h1>
+                <p class="page-subtitle" data-i18n="schemesPageDesc">Monthly deposit schemes — record installments and redeem the balance against a purchase at the POS.</p>
+              </div>
+              <div class="page-header-actions">
+                <button type="button" class="btn btn-gold" id="add-scheme-btn" data-i18n="addScheme">+ New Scheme</button>
+              </div>
+            </header>
+            <div id="schemes-table" class="table-wrap"></div>
+          </section>
+
+          <section id="view-settings" class="view" hidden>
+            <header class="page-header">
+              <div class="page-header-text">
+                <h1 data-i18n="viewSettingsTitle">Settings</h1>
+                <p class="page-subtitle" data-i18n="settingsPageDesc">Manage your application settings and preferences.</p>
+              </div>
+            </header>
+            <div class="settings-grid">
+              <article class="panel settings-card">
+                <h2 data-i18n="storeInfo">Store Information</h2>
+                <p class="panel-desc" data-i18n="storeInfoDesc">Update your store's basic details.</p>
+                <form id="settings-store-form" class="settings-form">
+                  <label class="settings-shop-name-field">
+                    <span data-i18n="shopName">Store display name</span>
+                    <input name="shopName" id="settings-shop-name" required autocomplete="organization" />
+                    <p id="shop-name-status" class="form-hint shop-name-status" hidden></p>
+                  </label>
+                  <label><span data-i18n="storeAddress">Address</span><input name="shopAddress" /></label>
+                  <label><span data-i18n="storePhone">Contact Phone</span><input name="shopPhone" type="tel" data-i18n-placeholder="storePhonePlaceholder" placeholder="(555) 123-4567" /></label>
+                  <label class="settings-country-field" id="settings-country-field"><span data-i18n="shopCountryLabel">Shop location</span>
+                    <select name="country" id="settings-country">
+                      <option value="NP" data-i18n-option="countryNP">Nepal</option>
+                      <option value="US" data-i18n-option="countryUS">United States</option>
+                      <option value="CA" data-i18n-option="countryCA">Canada</option>
+                    </select>
+                    <p class="form-hint" id="settings-country-hint"></p>
+                  </label>
+                  <label id="settings-pan-field"><span data-i18n="shopPan">PAN / VAT No.</span><input name="shopPan" id="settings-shop-pan" data-i18n-placeholder="shopPanPh" placeholder="e.g. 301234567" maxlength="20" autocomplete="off" /></label>
+                  <label class="settings-vat-field" id="settings-vat-field"><span data-i18n="vatRateLabel">VAT rate (%)</span><input name="vatRate" id="settings-vat-rate" type="number" min="0" max="100" step="0.5" placeholder="13" /></label>
+                  <label class="settings-vat-field" id="settings-salestax-field" hidden><span id="settings-salestax-label">Sales tax (%)</span><input name="salesTaxRate" id="settings-sales-tax-rate" type="number" min="0" max="100" step="0.001" placeholder="8.875" />
+                    <p class="form-hint" data-i18n="salesTaxRateHint">Pre-fills the tax box at checkout. Staff can still change it on any single bill.</p>
+                  </label>
+                  <label class="settings-calendar-field" id="settings-calendar-field"><span data-i18n="calendarModeLabel">Bill date calendar</span>
+                    <select name="calendarMode" id="settings-calendar-mode">
+                      <option value="both" data-i18n-option="calBoth">Both (English + Nepali)</option>
+                      <option value="bs" data-i18n-option="calBs">Nepali (BS) only</option>
+                      <option value="ad" data-i18n-option="calAd">English (AD) only</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="btn btn-gold" data-i18n="saveStoreInfo">Save Store Info</button>
+                </form>
+                <div class="store-locations-section">
+                  <h3 data-i18n="storeLocations">Store locations</h3>
+                  <p class="panel-desc" data-i18n="storeLocationsDesc">Add desk and storage locations for inventory items (e.g. Desk A, Desk B, Side Desk).</p>
+                  <ul id="locations-list" class="location-tag-list"></ul>
+                  <div class="location-add-row">
+                    <input type="text" id="new-location-input" data-i18n-placeholder="locationNamePh" placeholder="e.g. Desk A" maxlength="80" />
+                    <button type="button" class="btn btn-outline btn-sm" id="add-location-btn" data-i18n="addLocation">Add location</button>
+                  </div>
+                  <div class="settings-section-save">
+                    <button type="button" class="btn btn-gold btn-sm" id="save-locations-btn" data-i18n="saveLocations">Save locations</button>
+                  </div>
+                </div>
+                <div class="store-locations-section">
+                  <h3 data-i18n="itemCategories">Metal types</h3>
+                  <p class="panel-desc" data-i18n="itemCategoriesDesc">Inventory, orders, and POS use Gold, Silver, or Other. Other items need a name and manual rate.</p>
+                  <ul id="item-categories-list" class="location-tag-list"></ul>
+                </div>
+              </article>
+              <article class="panel settings-card">
+                <h2 data-i18n="appearance">Appearance</h2>
+                <p class="panel-desc" data-i18n="appearanceDesc">Customize the look and feel of the application.</p>
+                <div class="appearance-row">
+                  <div>
+                    <strong data-i18n="theme">Theme</strong>
+                    <p class="panel-desc" data-i18n="themeDesc">Select your preferred light or dark mode.</p>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-icon" id="theme-toggle" title="Theme">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                  </button>
+                </div>
+                <div class="language-row">
+                  <label><span data-i18n="language">Language</span>
+                    <select id="language-select"><option value="en">English</option><option value="ne">नेपाली</option></select>
+                  </label>
+                </div>
+              </article>
+              <article class="panel settings-card span-2">
+                <h2 data-i18n="metalPriceConfig">Metal Price Configuration</h2>
+                <p class="panel-desc" data-i18n="metalPriceDesc">Set how metal prices are determined for display.</p>
+                <form id="settings-form" class="settings-form">
+                  <div class="form-grid settings-currency-row">
+                    <label class="span-2"><span data-i18n="displayCurrency">Display currency</span>
+                      <select id="currency-select" aria-label="Display currency">
+                        <option value="NPR">NPR — Nepalese Rupee (रू)</option>
+                        <option value="USD">USD — US Dollar ($)</option>
+                        <option value="CAD">CAD — Canadian Dollar (CA$)</option>
+                      </select>
+                    </label>
+                    <p class="settings-hint span-2" data-i18n="displayCurrencyDesc">Prices, totals, and metal rates are shown in NPR, USD, or CAD.</p>
+                  </div>
+                  <!-- Live API pricing removed: the shop's own rate, saved below, is
+                       the only rate the app ever uses. -->
+                  <input type="hidden" name="priceMode" value="manual" />
+                  <div class="form-grid manual-price-fields">
+                    <p class="settings-subheading span-2" data-i18n="goldSellPriceSection">Gold sell price (manual)</p>
+                    <label><span data-currency-field="goldRateGram">Gold rate per gram</span><input name="goldRatePerGram" type="number" min="0" step="0.01" required /></label>
+                    <label><span data-currency-field="goldRateTola">Gold rate per tola</span><input name="goldRatePerTola" type="number" min="0" step="any" required /></label>
+                    <p class="settings-subheading span-2" data-i18n="goldBuyPriceSection">Gold buy price (manual)</p>
+                    <label><span data-currency-field="goldBuyRateGram">Gold buy rate per gram</span><input name="goldBuyRatePerGram" type="number" min="0" step="0.01" /></label>
+                    <label><span data-currency-field="goldBuyRateTola">Gold buy rate per tola</span><input name="goldBuyRatePerTola" type="number" min="0" step="any" /></label>
+                    <label><span data-currency-field="silverRateGram">Silver rate per gram</span><input name="silverRatePerGram" type="number" min="0" step="0.01" /></label>
+                    <label><span data-currency-field="silverRateTola">Silver rate per tola</span><input name="silverRatePerTola" type="number" min="0" step="any" /></label>
+                    <p class="settings-hint span-2" data-i18n="metalRateSyncHint">Gram and tola rates stay in sync (1 tola = 11.664 g). Edit either field.</p>
+                    <div class="span-2" id="karat-rate-panel" hidden style="display:flex;gap:.6rem;flex-wrap:wrap;padding:.4rem .1rem .2rem">
+                    </div>
+                  </div>
+                  <div class="form-grid manual-price-fields">
+                    <p class="settings-subheading span-2" data-i18n="fxRatesSection">Currency exchange rates (NPR per unit)</p>
+                    <label><span data-i18n="fxUsd">1 USD = NPR</span><input name="fxUsd" id="settings-fx-usd" type="number" min="0" step="0.01" placeholder="133" /></label>
+                    <label><span data-i18n="fxCad">1 CAD = NPR</span><input name="fxCad" id="settings-fx-cad" type="number" min="0" step="0.01" placeholder="98" /></label>
+                    <p class="settings-hint span-2" data-i18n="fxRatesHint">Used to convert live USD/CAD metal prices to NPR. The rate in effect is frozen onto every invoice at checkout.</p>
+                    <p class="settings-hint span-2" id="fx-updated-hint" hidden></p>
+                  </div>
+                  <div class="settings-actions">
+                    <button type="submit" class="btn btn-gold" data-i18n="savePriceSettings">Save Price Settings</button>
+                    <span id="settings-updated" class="settings-updated"></span>
+                  </div>
+                </form>
+                <div class="rate-history-head">
+                  <h3 class="rate-history-title" data-i18n="goldRateChart">Gold price trend</h3>
+                  <button type="button" class="icon-btn rate-history-clear-btn" id="clear-rate-history-btn" data-i18n-title="clearRateHistory" title="Clear chart data" aria-label="Clear chart data" hidden>×</button>
+                </div>
+                <div class="segmented-control rate-history-period" role="tablist" aria-label="Chart time period">
+                  <button type="button" class="segment-btn is-active" data-rate-period="daily" role="tab" aria-selected="true" data-i18n="ratePeriodDaily">Daily</button>
+                  <button type="button" class="segment-btn" data-rate-period="weekly" role="tab" aria-selected="false" data-i18n="ratePeriodWeekly">Weekly</button>
+                  <button type="button" class="segment-btn" data-rate-period="monthly" role="tab" aria-selected="false" data-i18n="ratePeriodMonthly">Monthly</button>
+                  <button type="button" class="segment-btn" data-rate-period="yearly" role="tab" aria-selected="false" data-i18n="ratePeriodYearly">Yearly</button>
+                </div>
+                <div id="live-daily-rate-now" class="live-daily-rate-now" hidden></div>
+                <div id="rate-history-chart" class="rate-history-chart" aria-hidden="false"></div>
+              </article>
+            </div>
+
+            <article class="panel settings-card settings-account-card">
+              <h2 data-i18n="accountSection">Account</h2>
+              <p class="settings-account-user" id="settings-account-user" hidden></p>
+              <form id="settings-change-password-form" class="settings-form settings-password-form" hidden>
+                <label><span data-i18n="authCurrentPassword">Current password</span><input type="password" name="currentPassword" autocomplete="current-password" required /></label>
+                <label><span data-i18n="authPassword">New password</span><input type="password" name="password" autocomplete="new-password" required /></label>
+                <label><span data-i18n="authConfirmPassword">Confirm password</span><input type="password" name="confirm" autocomplete="new-password" required /></label>
+                <p class="auth-error" id="change-password-error" hidden></p>
+                <button type="submit" class="btn btn-outline" data-i18n="changePassword">Change password</button>
+              </form>
+              <div class="settings-account-actions">
+                <button type="button" class="btn btn-outline settings-logout-btn" id="settings-logout-btn" data-i18n="signOut">Log out</button>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog id="order-modal" class="modal modal-wide">
+      <form id="order-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="addOrderTitle" id="order-modal-title">New order</h2>
+          <button type="button" class="icon-btn" id="close-order-modal">×</button>
+        </header>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="customerSection">Customer</legend>
+          <div class="search-field modal-search">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" id="order-customer-search" data-i18n-placeholder="customerSearch" placeholder="Search or Add Customer (Name/Phone)" autocomplete="off" />
+            <div id="order-customer-suggestions" class="customer-suggestions" hidden></div>
+          </div>
+          <button type="button" class="btn btn-outline btn-xs modal-inline-btn" id="order-add-customer">
+            <span data-i18n="addCustomer">+ Add New Customer</span>
+          </button>
+          <input type="hidden" name="customerName" />
+          <input type="hidden" name="customerPhone" />
+          <div id="order-customer-display" class="pos-customer-display order-customer-display" hidden>
+            <div class="pos-customer-display-head">
+              <button type="button" class="icon-btn pos-customer-clear-btn" id="clear-order-customer-btn" data-i18n-title="clearCustomer" title="Clear customer" aria-label="Clear customer">×</button>
+            </div>
+            <div class="pos-customer-display-row">
+              <span class="pos-customer-display-label" data-i18n="customerName">Customer name</span>
+              <strong id="order-customer-display-name"></strong>
+            </div>
+            <div class="pos-customer-display-row">
+              <span class="pos-customer-display-label" data-i18n="customerPhone">Phone</span>
+              <strong id="order-customer-display-phone">—</strong>
+            </div>
+            <div class="pos-customer-display-row">
+              <span class="pos-customer-display-label" data-i18n="email">Email</span>
+              <strong id="order-customer-display-email">—</strong>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="orderDetails">Order details</legend>
+          <p class="panel-desc order-source-desc" data-i18n="orderItemSource">How would you like to add the item?</p>
+          <div class="segmented-control order-item-mode" role="tablist" aria-label="Order item source">
+            <button type="button" class="segment-btn" data-order-item-mode="inventory" role="tab" aria-selected="false">
+              <span data-i18n="orderFromInventory">Select from inventory</span>
+            </button>
+            <button type="button" class="segment-btn is-active" data-order-item-mode="custom" role="tab" aria-selected="true">
+              <span data-i18n="orderCustomItem">Add custom item</span>
+            </button>
+          </div>
+          <input type="hidden" name="orderItemMode" value="custom" />
+          <div id="order-inventory-fields" class="order-source-panel" hidden>
+            <p class="form-hint" data-i18n="orderInventoryHint">Choose an in-stock item from your inventory.</p>
+            <div class="form-grid">
+              <label class="span-2"><span data-i18n="item">Item</span><select name="itemId" id="order-item-select"></select></label>
+              <p id="order-item-weight-preview" class="form-hint span-2" hidden></p>
+            </div>
+          </div>
+          <div id="order-custom-fields" class="order-source-panel">
+            <p class="form-hint" data-i18n="orderCustomHint">Enter item details for a one-off or made-to-order piece.</p>
+            <div class="form-grid">
+              <label><span data-i18n="itemMetal">Metal</span>
+                <select name="customCategory"></select>
+              </label>
+              <p class="form-hint span-2 item-metal-rate-hint" hidden></p>
+              <label class="item-custom-rate-field span-2" hidden>
+                <span data-currency-field="itemManualRate">Rate per tola</span>
+                <input name="customRatePerTola" type="number" min="0" step="any" />
+              </label>
+              <label class="span-2 item-custom-name-field"><span data-i18n="customItemName">Item name</span><input name="customItemName" data-i18n-placeholder="itemNameOtherPh" /></label>
+              <label class="order-custom-karat-field"><span data-i18n="karat">Karat</span><select name="customKarat"><option value="24" selected>24K</option><option value="22">22K</option><option value="18">18K</option></select></label>
+              <div class="weight-entry form-grid span-2" data-weight-prefix="custom">
+                <p class="form-hint span-2" style="margin:0"><strong>Weight</strong> — enter in grams or tola / aana / laal (required for price).</p>
+                <label class="span-2"><span data-i18n="weightUnit">Weight unit</span>
+                  <select name="customWeightUnit" class="weight-unit-select">
+                    <option value="grams" data-i18n-option="weightUnitGrams">Grams</option>
+                    <option value="tola" data-i18n-option="weightUnitTola">Tola / Laal</option>
+                  </select>
+                </label>
+                <label class="weight-panel-grams"><span data-i18n="weightGrams">Weight (grams)</span><input name="customWeightGrams" type="number" min="0" step="any" placeholder="0.000" /></label>
+                <label class="weight-panel-tola" hidden><span data-i18n="weightTola">Tola</span><input name="customWeightTola" type="number" min="0" step="any" /></label>
+                <label class="weight-panel-aana" hidden><span data-i18n="weightAana">Aana</span><input name="customWeightAana" type="number" min="0" max="15" step="1" /></label>
+                <label class="weight-panel-laal" hidden><span data-i18n="weightLaal">Laal</span><input name="customWeightLaal" type="number" min="0" step="any" /></label>
+                <p class="form-hint span-2 weight-conversion-hint" hidden></p>
+              </div>
+              <label><span data-currency-field="makingCharge">Making charge</span><input name="customMakingCharge" type="number" min="0" step="any" value="0" /></label>
+              <div class="form-grid span-2 order-jarti-fields" id="order-jarti-fields">
+                <label><span>Jarti type</span>
+                  <select name="customJartiRateType" id="order-jarti-type">
+                    <option value="grams" selected>Fixed weight (grams)</option>
+                    <option value="percent">Percent of weight (%)</option>
+                  </select>
+                </label>
+                <label id="order-jarti-percent-wrap"><span id="order-jarti-value-label">Jarti %</span><input name="customJartiRateValue" id="order-jarti-value" type="number" min="0" step="0.01" value="0" placeholder="e.g. 10" /></label>
+                <label class="order-jarti-grams-wrap" hidden><span>Jarti (grams)</span><input name="customJartiGrams" type="number" min="0" step="any" placeholder="0.000" /></label>
+                <label class="order-jarti-tola-wrap" hidden><span>Jarti tola</span><input name="customJartiTola" type="number" min="0" step="any" placeholder="0" /></label>
+                <label class="order-jarti-aana-wrap" hidden><span>Jarti aana</span><input name="customJartiAana" type="number" min="0" max="15" step="1" placeholder="0" /></label>
+                <label class="order-jarti-laal-wrap" hidden><span>Jarti laal</span><input name="customJartiLaal" type="number" min="0" step="any" placeholder="0" /></label>
+                <p class="form-hint span-2" id="order-jarti-preview">Jarti is optional. Fixed weight follows the unit above (grams or tola / aana / laal) and is priced at the metal rate.</p>
+              </div>
+            </div>
+          </div>
+          <div class="form-grid order-summary-fields">
+            <label><span data-i18n="quantity">Quantity</span><input name="quantity" type="number" min="1" value="1" required /></label>
+            <label><span data-currency-field="orderTotal">Order total</span><input id="order-total-preview" readonly tabindex="-1" /></label>
+            <p id="order-price-breakdown" class="order-price-breakdown span-2" hidden></p>
+            <label class="span-2"><span data-i18n="note">Note</span><input name="note" data-i18n-placeholder="optionalNote" /></label>
+            <label><span>Karigar</span><select name="karigarId" id="order-karigar-select"><option value="">— None —</option></select></label>
+            <label><span>Advance (रू)</span><input name="advanceAmount" type="number" min="0" step="any" placeholder="Optional" /></label>
+            <label class="check-label"><input name="advancePaid" type="checkbox" /><span>Advance paid</span></label>
+            <label><span>Gold given by customer (g)</span><input name="customerGoldGrams" type="number" min="0" step="any" placeholder="Optional" /></label>
+            <label><span>Gold added (g)</span><input name="goldAddedGrams" type="number" min="0" step="any" placeholder="Optional" /></label>
+            <label><span>Left payment (रू)</span><input name="remainingPayment" id="order-remaining-preview" type="number" min="0" step="any" placeholder="Optional" /></label>
+            <p class="form-hint span-2" id="order-payment-hint">Advance, gold given/added, and left payment are all optional.</p>
+          </div>
+        </fieldset>
+
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-order-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="order-submit-btn" data-i18n="createOrder">Create order</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="customer-modal" class="modal">
+      <form id="customer-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="addCustomerTitle">Add New Customer</h2>
+          <button type="button" class="icon-btn" id="close-customer-modal">×</button>
+        </header>
+        <div class="form-grid">
+          <label class="span-2"><span data-i18n="customerNameRequired">Customer name *</span><input name="name" required autocomplete="name" /></label>
+          <label class="span-2"><span data-i18n="authPhoneRegion">Phone region</span>
+            <select id="customer-phone-region" class="phone-region-select" aria-label="Phone region">
+              <option value="NP" data-i18n-option="authPhoneRegionNP">Nepal (+977)</option>
+              <option value="US" data-i18n-option="authPhoneRegionUS">United States (+1)</option>
+              <option value="CA" data-i18n-option="authPhoneRegionCA">Canada (+1)</option>
+            </select>
+          </label>
+          <label class="span-2"><span data-i18n="customerPhone">Phone</span><input name="phone" id="customer-phone-input" type="tel" data-i18n-placeholder="authPhonePlaceholderNP" placeholder="98XXXXXXXX" autocomplete="tel" /></label>
+          <p class="form-hint span-2" id="customer-phone-hint" data-i18n="customerPhoneHintNP">Nepal mobile: 97/98XXXXXXXX</p>
+          <label class="span-2"><span data-i18n="email">Email</span><input name="email" type="email" autocomplete="email" /></label>
+          <label class="span-2"><span data-i18n="address">Address</span><input name="address" autocomplete="street-address" /></label>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-customer-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveCustomer">Save Customer</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="custom-item-modal" class="modal modal-wide">
+      <form id="custom-item-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="addCustomItemTitle">Add Custom Item</h2>
+          <button type="button" class="icon-btn" id="close-custom-item-modal">×</button>
+        </header>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="customerSection">Customer</legend>
+          <div class="search-field modal-search">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" id="custom-item-customer-search" data-i18n-placeholder="customerSearch" placeholder="Search or Add Customer (Name/Phone)" autocomplete="off" />
+            <div id="custom-item-customer-suggestions" class="customer-suggestions" hidden></div>
+          </div>
+          <button type="button" class="btn btn-outline btn-xs modal-inline-btn" id="custom-item-add-customer">
+            <span data-i18n="addCustomer">+ Add New Customer</span>
+          </button>
+          <div class="form-grid modal-section-grid">
+            <label><span data-i18n="customerName">Customer name</span><input name="customerName" /></label>
+            <label><span data-i18n="customerPhone">Phone</span><input name="customerPhone" type="tel" data-i18n-placeholder="customerPhonePlaceholder" placeholder="(555) 123-4567" /></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="itemDetails">Item details</legend>
+          <div class="form-grid">
+            <label><span data-i18n="itemMetal">Metal</span>
+              <select name="category"></select>
+            </label>
+            <p class="form-hint span-2 item-metal-rate-hint" hidden></p>
+            <label class="item-custom-rate-field span-2" hidden>
+              <span data-currency-field="itemManualRate">Rate per tola</span>
+              <input name="customRatePerTola" type="number" min="0" step="any" />
+            </label>
+            <label class="span-2 item-custom-name-field"><span data-i18n="name">Name</span><input name="name" data-i18n-placeholder="itemNameOtherPh" /></label>
+            <label><span data-i18n="karat">Karat</span><select name="karat"><option value="24">24K</option><option value="22" selected>22K</option><option value="18">18K</option></select></label>
+            <div class="weight-entry form-grid span-2" data-weight-prefix="">
+              <label class="span-2"><span data-i18n="weightUnit">Weight unit</span>
+                <select name="weightUnit" class="weight-unit-select">
+                  <option value="grams" data-i18n-option="weightUnitGrams">Grams</option>
+                  <option value="tola" data-i18n-option="weightUnitTola">Tola / Laal</option>
+                </select>
+              </label>
+              <label class="weight-panel-grams"><span data-i18n="weightGrams">Weight (grams)</span><input name="weightGrams" type="number" min="0" step="any" /></label>
+              <label class="weight-panel-tola" hidden><span data-i18n="weightTola">Tola</span><input name="weightTola" type="number" min="0" step="any" /></label>
+              <label class="weight-panel-aana" hidden><span data-i18n="weightAana">Aana</span><input name="weightAana" type="number" min="0" max="15" step="1" /></label>
+              <label class="weight-panel-laal" hidden><span data-i18n="weightLaal">Laal</span><input name="weightLaal" type="number" min="0" step="any" /></label>
+              <p class="form-hint span-2 weight-conversion-hint" hidden></p>
+            </div>
+            <label><span data-currency-field="makingCharge">Making charge</span><input name="makingCharge" type="number" min="0" step="any" value="0" /></label>
+            <label><span data-currency-field="purchaseCost">Purchase cost</span><input name="purchaseCost" type="number" min="0" step="any" /></label>
+            <label><span data-i18n="hsCode">H.S. Code</span><input name="hsCode" maxlength="12" data-i18n-placeholder="hsCodePh" placeholder="e.g. 7113" /></label>
+            <label><span data-currency-field="stoneAmount">Stone amount</span><input name="stoneAmount" type="number" min="0" step="any" value="0" /></label>
+            <label><span data-i18n="quantity">Quantity</span><input name="quantity" type="number" min="1" value="1" required /></label>
+            <label><span data-i18n="location">Location</span><input name="location" list="location-options" data-i18n-placeholder="locationPlaceholder" /></label>
+            <label><span data-currency-field="salePrice">Sale price</span><input name="salePrice" id="custom-item-sale-price" type="number" min="0" step="0.01" /></label>
+            <label><span data-i18n="calculatedPrice">Calculated price</span><input id="custom-item-price-preview" type="text" readonly tabindex="-1" /></label>
+            <label class="span-2"><span data-i18n="notes">Notes</span><textarea name="notes" rows="2"></textarea></label>
+          </div>
+        </fieldset>
+
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-custom-item-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="addToCart">Add to Cart</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="item-modal" class="modal modal-wide">
+      <form id="item-form" method="dialog">
+        <header class="modal-head">
+          <h2 id="modal-title" data-i18n="addItemTitle">Add item</h2>
+          <button type="button" class="icon-btn" id="close-modal">×</button>
+        </header>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="itemDetails">Item details</legend>
+          <div class="form-grid">
+            <label><span data-i18n="sku">SKU</span><input name="sku" readonly tabindex="-1" data-i18n-placeholder="skuAutoGenerated" placeholder="Auto-generated" /></label>
+            <label><span data-i18n="itemMetal">Metal</span>
+              <select name="category"></select>
+            </label>
+            <p class="form-hint span-2 item-metal-rate-hint" hidden></p>
+            <label class="item-custom-rate-field span-2" hidden>
+              <span data-currency-field="itemManualRate">Rate per tola</span>
+              <input name="customRatePerTola" type="number" min="0" step="any" />
+            </label>
+            <label class="span-2 item-inventory-name-field"><span data-i18n="name">Name</span><input name="name" required data-i18n-placeholder="itemNameOtherPh" /></label>
+            <label><span data-i18n="karat">Karat</span><select name="karat"><option value="24" selected>24K</option><option value="22">22K</option><option value="18">18K</option></select></label>
+            <div class="weight-entry form-grid span-2" data-weight-prefix="">
+              <label class="span-2"><span data-i18n="weightUnit">Weight unit</span>
+                <select name="weightUnit" class="weight-unit-select">
+                  <option value="grams" data-i18n-option="weightUnitGrams">Grams</option>
+                  <option value="tola" data-i18n-option="weightUnitTola">Tola / Laal</option>
+                </select>
+              </label>
+              <label class="weight-panel-grams"><span data-i18n="weightGrams">Weight (grams)</span><input name="weightGrams" type="number" min="0" step="any" /></label>
+              <label class="weight-panel-tola" hidden><span data-i18n="weightTola">Tola</span><input name="weightTola" type="number" min="0" step="any" /></label>
+              <label class="weight-panel-aana" hidden><span data-i18n="weightAana">Aana</span><input name="weightAana" type="number" min="0" max="15" step="1" /></label>
+              <label class="weight-panel-laal" hidden><span data-i18n="weightLaal">Laal</span><input name="weightLaal" type="number" min="0" step="any" /></label>
+              <p class="form-hint span-2 weight-conversion-hint" hidden></p>
+            </div>
+            <label><span data-currency-field="makingCharge">Making charge</span><input name="makingCharge" type="number" min="0" step="any" value="0" /></label>
+            <label><span data-i18n="hsCode">H.S. Code</span><input name="hsCode" maxlength="12" data-i18n-placeholder="hsCodePh" placeholder="e.g. 7113" /></label>
+            <label><span data-currency-field="stoneAmount">Stone amount</span><input name="stoneAmount" type="number" min="0" step="any" value="0" /></label>
+            <label><span>Jarti / जर्ती</span><select name="jartiRateType"><option value="grams" selected>Jarti weight (grams)</option><option value="percent">Percent (%)</option><option value="flat">Flat (रू)</option><option value="per_gram">Per gram</option><option value="per_tola">Per tola</option></select></label>
+            <label><span id="item-jarti-value-label">Jarti weight (grams) / जर्ती तौल</span><input name="jartiRateValue" type="number" min="0" step="any" value="0" /></label>
+            <p class="form-hint span-2" id="item-jarti-preview" hidden></p>
+            <label><span data-currency-field="purchaseCost">Purchase cost</span><input name="purchaseCost" type="number" min="0" step="any" /></label>
+            <label><span data-i18n="quantity">Quantity</span><input name="quantity" type="number" min="0" value="1" required /></label>
+            <label><span data-i18n="status">Status</span><select name="status"><option value="in_stock" data-i18n-option="inStock">In stock</option><option value="reserved" data-i18n-option="reserved">Reserved</option><option value="sold_out" data-i18n-option="soldOut">Sold out</option></select></label>
+            <label><span data-i18n="location">Location</span><input name="location" list="location-options" data-i18n-placeholder="locationPlaceholder" /></label>
+            <label><span data-currency-field="salePrice">Sale price</span><input name="salePrice" id="item-sale-price" type="number" min="0" step="0.01" data-i18n-placeholder="salePriceHint" placeholder="Leave blank to use calculated price" /></label>
+            <label><span data-i18n="calculatedPrice">Calculated price</span><input id="item-price-preview" type="text" readonly tabindex="-1" /></label>
+            <div id="item-price-breakdown" class="order-price-breakdown span-2" hidden></div>
+            <label class="span-2"><span data-i18n="notes">Notes</span><textarea name="notes" rows="2"></textarea></label>
+          </div>
+        </fieldset>
+
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveItem">Save item</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="bill-modal" class="modal modal-wide bill-modal">
+      <header class="modal-head bill-modal-head">
+        <h2 data-i18n="saleBill">Sale Bill</h2>
+        <button type="button" class="icon-btn" id="close-bill-modal">×</button>
+      </header>
+      <div class="bill-options" id="bill-options">
+        <label class="bill-option bill-style-field">
+          <span data-i18n="billStyle">Bill style</span>
+          <select id="bill-style-select">
+            <option value="guarantee" data-i18n-option="billStyleGuarantee">Guarantee bill</option>
+            <option value="classic" data-i18n-option="billStyleClassic">Classic receipt</option>
+          </select>
+        </label>
+        <label class="bill-option">
+          <input type="checkbox" id="bill-show-sign" checked />
+          <span data-i18n="showSignature">Show authorized signature</span>
+        </label>
+        <label class="bill-option">
+          <input type="checkbox" id="bill-show-customer-sign" checked />
+          <span data-i18n="showCustomerSignature">Show customer signature</span>
+        </label>
+        <label class="bill-option">
+          <input type="checkbox" id="bill-show-stamp" checked />
+          <span data-i18n="showStamp">Show stamp</span>
+        </label>
+        <label class="bill-option bill-signatory-field">
+          <span data-i18n="signatoryName">Signatory name</span>
+          <input type="text" id="bill-signatory-name" data-i18n-placeholder="authorizedSignatory" placeholder="Authorized signatory" />
+        </label>
+      </div>
+      <div id="bill-content" class="bill-content"></div>
+      <footer class="modal-foot bill-modal-foot">
+        <button type="button" class="btn btn-outline" id="print-bill-btn" data-i18n="printBill">Print Bill</button>
+        <button type="button" class="btn btn-gold" id="bill-done-btn" data-i18n="done">Done</button>
+      </footer>
+    </dialog>
+
+    <dialog id="quick-calc-modal" class="modal quick-calc-modal">
+      <header class="modal-head">
+        <h2 data-i18n="quickCalcTitle">Calculator</h2>
+        <button type="button" class="icon-btn" id="close-quick-calc-modal" data-i18n-title="close" title="Close" aria-label="Close">×</button>
+      </header>
+      <div class="quick-calc-body">
+        <output id="quick-calc-display" class="quick-calc-display" for="quick-calc-pad">0</output>
+        <div id="quick-calc-pad" class="quick-calc-pad">
+          <button type="button" class="quick-calc-btn quick-calc-fn" data-action="clear">C</button>
+          <button type="button" class="quick-calc-btn quick-calc-fn" data-action="backspace" aria-label="Backspace">⌫</button>
+          <button type="button" class="quick-calc-btn quick-calc-op" data-action="op" data-op="/">÷</button>
+          <button type="button" class="quick-calc-btn quick-calc-op" data-action="op" data-op="*">×</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="7">7</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="8">8</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="9">9</button>
+          <button type="button" class="quick-calc-btn quick-calc-op" data-action="op" data-op="-">−</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="4">4</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="5">5</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="6">6</button>
+          <button type="button" class="quick-calc-btn quick-calc-op" data-action="op" data-op="+">+</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="1">1</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="2">2</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit="3">3</button>
+          <button type="button" class="quick-calc-btn quick-calc-eq" data-action="equals">=</button>
+          <button type="button" class="quick-calc-btn quick-calc-zero" data-action="digit" data-digit="0">0</button>
+          <button type="button" class="quick-calc-btn" data-action="digit" data-digit=".">.</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="karigar-modal" class="modal">
+      <form id="karigar-form" method="dialog">
+        <header class="modal-head">
+          <h2 id="karigar-modal-title">Add Karigar</h2>
+          <button type="button" class="icon-btn" id="close-karigar-modal">×</button>
+        </header>
+        <div class="form-grid">
+          <label class="span-2"><span>Full name *</span><input name="name" required autocomplete="off" placeholder="e.g. Ram Bahadur Shrestha" /></label>
+          <label><span>Phone</span><input name="phone" type="tel" placeholder="Optional" /></label>
+          <label><span>Specialty / work type</span><input name="specialty" placeholder="e.g. Necklace, Ring, Bangle" /></label>
+          <label class="span-2"><span>Address / workshop</span><input name="address" placeholder="Optional — area, shop, or workshop location" /></label>
+          <label class="span-2"><span>Notes</span><textarea name="notes" rows="2" placeholder="Optional — rates, reliability, preferences…"></textarea></label>
+          <label class="check-label span-2" id="karigar-active-wrap"><input name="active" type="checkbox" checked /><span>Active (show in order assignment)</span></label>
+        </div>
+        <p class="form-hint">Phone, specialty, address, and notes are optional. Inactive karigar stay in records but are hidden from new order assignment.</p>
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-karigar-modal">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="karigar-submit-btn">Save Karigar</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="gold-issue-modal" class="modal">
+      <form id="gold-issue-form" method="dialog">
+        <header class="modal-head">
+          <h2 id="gold-issue-modal-title">Issue Gold to Karigar</h2>
+          <button type="button" class="icon-btn" id="close-gold-issue-modal">×</button>
+        </header>
+        <div class="form-grid">
+          <input type="hidden" id="gold-issue-karigar-id" />
+          <label class="span-2"><span>Karigar</span><input type="text" id="gold-issue-karigar-name" readonly tabindex="-1" /></label>
+          <label><span>Pure / raw weight (grams) *</span><input name="weightGrams" type="number" min="0.001" step="any" required placeholder="0.000" /></label>
+          <label id="gold-wastage-wrap"><span>Wastage / loss (grams)</span><input name="wastageGrams" type="number" min="0" step="any" value="0" placeholder="On return only" /></label>
+          <label><span>Karat purity</span><select name="karat"><option value="24">24K</option><option value="22" selected>22K</option><option value="18">18K</option></select></label>
+          <label><span>Date *</span><input name="date" type="date" required /></label>
+          <label class="span-2"><span>Work / item description</span><input name="description" placeholder="Optional — e.g. 2 rings, necklace repair" /></label>
+        </div>
+        <p class="form-hint span-2" id="gold-issue-type-hint"></p>
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-gold-issue-modal">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="gold-issue-submit-btn">Issue Gold</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="void-sale-modal" class="modal">
+      <form id="void-sale-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="voidSaleTitle">Void Sale</h2>
+          <button type="button" class="icon-btn" data-close-modal="void-sale-modal" aria-label="Close">×</button>
+        </header>
+        <p class="panel-desc" id="void-sale-summary"></p>
+        <p class="panel-desc" data-i18n="voidSaleDesc">The invoice stays on record marked VOIDED, stock is returned, and reports exclude it. This cannot be undone.</p>
+        <label><span data-i18n="voidReason">Reason (required)</span>
+          <input type="text" id="void-sale-reason" required maxlength="200" data-i18n-placeholder="voidReasonPh" placeholder="e.g. wrong item rung up" />
+        </label>
+        <input type="hidden" id="void-sale-id" />
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="void-sale-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-danger" data-i18n="voidSaleConfirm">Void this sale</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="manual-due-modal" class="modal">
+      <form id="manual-due-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="manualDueTitle">Add Old Due (Opening Balance)</h2>
+          <button type="button" class="icon-btn" data-close-modal="manual-due-modal" aria-label="Close">×</button>
+        </header>
+        <p class="panel-desc" data-i18n="manualDueDesc">Bring an old udharo balance from your paper khata into the app. It joins the credit-dues list and takes payments, but is never counted as sales revenue.</p>
+        <div class="form-grid">
+          <label><span data-i18n="customerName">Customer name</span><input name="customerName" required maxlength="120" /></label>
+          <label><span data-i18n="customerPhone">Phone</span><input name="customerPhone" type="tel" maxlength="20" /></label>
+          <label><span data-currency-field="dueAmount">Amount owed</span><input name="amount" type="number" min="1" step="0.01" required /></label>
+          <label><span data-i18n="manualDueDate">Original date (optional)</span><input name="date" type="date" /></label>
+          <label class="span-2"><span data-i18n="notes">Notes</span><input name="note" maxlength="200" data-i18n-placeholder="manualDueNotePh" placeholder="e.g. balance from old khata page 12" /></label>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="manual-due-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveDue">Add Due</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="receive-payment-modal" class="modal">
+      <form id="receive-payment-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="receivePaymentTitle">Receive Payment</h2>
+          <button type="button" class="icon-btn" data-close-modal="receive-payment-modal" aria-label="Close">×</button>
+        </header>
+        <p class="panel-desc" id="receive-payment-summary"></p>
+        <div class="form-grid">
+          <label><span data-currency-field="paymentAmount">Amount received</span><input type="number" id="receive-payment-amount" min="0.01" step="0.01" required /></label>
+          <label><span data-i18n="paymentMethod">Payment method</span>
+            <select id="receive-payment-method">
+              <option value="cash" data-i18n-option="payCash">Cash</option>
+              <option value="esewa" data-i18n-option="payEsewa">eSewa</option>
+              <option value="khalti" data-i18n-option="payKhalti">Khalti</option>
+              <option value="card" data-i18n-option="payCard">Card</option>
+              <option value="bank" data-i18n-option="payBank">Bank transfer</option>
+            </select>
+          </label>
+          <label><span data-i18n="date">Date</span><input type="date" id="receive-payment-date" /></label>
+          <label><span data-i18n="notes">Notes</span><input type="text" id="receive-payment-note" maxlength="200" /></label>
+        </div>
+        <input type="hidden" id="receive-payment-sale-id" />
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="receive-payment-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="savePayment">Save Payment</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="request-modal" class="modal modal-wide">
+      <form id="request-form" method="dialog">
+        <header class="modal-head">
+          <h2 id="request-modal-title">New Request</h2>
+          <button type="button" class="icon-btn" data-close-modal="request-modal" aria-label="Close">&times;</button>
+        </header>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="requestCustomerSection">Who asked</legend>
+          <div class="form-grid">
+            <label class="request-suggest-field"><span data-i18n="customerName">Customer name</span><input name="customerName" required maxlength="120" autocomplete="off" data-i18n-placeholder="requestCustomerPh" placeholder="Type to search existing customers…" />
+              <div id="request-customer-suggestions" class="customer-suggestions" hidden></div></label>
+            <label><span data-i18n="customerPhone">Phone</span><input name="customerPhone" type="tel" maxlength="20" /></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="modal-section">
+          <legend data-i18n="requestItemsSection">Items requested</legend>
+          <div class="segmented-control request-item-mode" role="tablist" aria-label="Request item source">
+            <button type="button" class="segment-btn is-active" data-request-mode="inventory" role="tab" aria-selected="true">
+              <span data-i18n="requestInvTab">Select from inventory</span>
+            </button>
+            <button type="button" class="segment-btn" data-request-mode="custom" role="tab" aria-selected="false">
+              <span data-i18n="requestCustomTab">Custom items</span>
+            </button>
+          </div>
+          <div id="request-inventory-panel" class="order-source-panel">
+            <div class="filter-bar">
+              <input type="search" id="request-inv-search" data-i18n-placeholder="requestInvSearchPh" placeholder="Search items by name or SKU..." autocomplete="off" />
+            </div>
+            <div id="request-inv-list" class="request-inv-list"></div>
+            <p class="form-hint" id="request-inv-count"></p>
+          </div>
+          <div id="request-custom-panel" class="order-source-panel" hidden>
+            <p class="form-hint" data-i18n="requestItemsHint">Add one row per piece the customer asked for.</p>
+            <div id="request-items-list" class="request-items-list"></div>
+            <button type="button" class="btn btn-outline btn-xs modal-inline-btn" id="request-add-item" data-i18n="requestAddItem">+ Add another item</button>
+          </div>
+        </fieldset>
+
+        <div class="form-grid">
+          <label class="span-2"><span data-i18n="notes">Notes</span><input name="note" maxlength="500" /></label>
+        </div>
+
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="request-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveRequest">Save Request</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="repair-modal" class="modal">
+      <form id="repair-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="repairModalTitle">New Repair Job</h2>
+          <button type="button" class="icon-btn" data-close-modal="repair-modal" aria-label="Close">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span data-i18n="customerName">Customer name</span><input name="customerName" required maxlength="120" /></label>
+          <label><span data-i18n="customerPhone">Phone</span><input name="customerPhone" type="tel" maxlength="20" /></label>
+          <label class="span-2"><span data-i18n="repairItemDesc">Item description</span><input name="itemDescription" required maxlength="200" data-i18n-placeholder="repairItemDescPh" placeholder="e.g. gold ring — resize from 16 to 18" /></label>
+          <label><span data-i18n="repairWeight">Weight (g, optional)</span><input name="weightGrams" type="number" min="0" step="any" /></label>
+          <label><span>Wastage / जर्ती (g, optional)</span><input name="wastageGrams" type="number" min="0" step="any" /></label>
+          <label><span data-currency-field="repairEstCharge">Estimated charge</span><input name="estimatedCharge" type="number" min="0" step="0.01" /></label>
+          <label><span data-i18n="repairPromised">Promised date</span><input name="promisedDate" type="date" /></label>
+          <label><span data-i18n="notes">Notes</span><input name="notes" maxlength="300" /></label>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="repair-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveRepair">Save Repair</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="repair-deliver-modal" class="modal">
+      <form id="repair-deliver-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="repairDeliverTitle">Deliver Repair</h2>
+          <button type="button" class="icon-btn" data-close-modal="repair-deliver-modal" aria-label="Close">×</button>
+        </header>
+        <p class="panel-desc" id="repair-deliver-summary"></p>
+        <div class="form-grid">
+          <label><span data-currency-field="repairFinalCharge">Final charge</span><input type="number" id="repair-final-charge" min="0" step="0.01" required /></label>
+          <label><span>Wastage / जर्ती (g)</span><input type="number" id="repair-wastage" min="0" step="0.01" /></label>
+          <label><span data-i18n="paymentMethod">Payment method</span>
+            <select id="repair-payment-method">
+              <option value="cash" data-i18n-option="payCash">Cash</option>
+              <option value="esewa" data-i18n-option="payEsewa">eSewa</option>
+              <option value="khalti" data-i18n-option="payKhalti">Khalti</option>
+              <option value="card" data-i18n-option="payCard">Card</option>
+              <option value="bank" data-i18n-option="payBank">Bank transfer</option>
+            </select>
+          </label>
+        </div>
+        <input type="hidden" id="repair-deliver-id" />
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="repair-deliver-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="repairDeliverConfirm">Mark delivered &amp; collect</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="scheme-modal" class="modal">
+      <form id="scheme-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="schemeModalTitle">New Gold Savings Scheme</h2>
+          <button type="button" class="icon-btn" data-close-modal="scheme-modal" aria-label="Close">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span data-i18n="customerName">Customer name</span><input name="customerName" required maxlength="120" /></label>
+          <label><span data-i18n="customerPhone">Phone</span><input name="customerPhone" type="tel" maxlength="20" /></label>
+          <label><span data-currency-field="schemeMonthly">Monthly amount</span><input name="monthlyAmount" type="number" min="1" step="0.01" required /></label>
+          <label><span data-i18n="schemeDuration">Duration (months)</span><input name="durationMonths" type="number" min="1" max="120" step="1" value="12" required /></label>
+          <label><span data-i18n="startDate">Start date</span><input name="startDate" type="date" /></label>
+          <label><span data-i18n="notes">Notes</span><input name="notes" maxlength="300" /></label>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="scheme-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveScheme">Create Scheme</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="scheme-deposit-modal" class="modal">
+      <form id="scheme-deposit-form" method="dialog">
+        <header class="modal-head">
+          <h2 data-i18n="schemeDepositTitle">Record Deposit</h2>
+          <button type="button" class="icon-btn" data-close-modal="scheme-deposit-modal" aria-label="Close">×</button>
+        </header>
+        <p class="panel-desc" id="scheme-deposit-summary"></p>
+        <div class="form-grid">
+          <label><span data-currency-field="depositAmount">Amount</span><input type="number" id="scheme-deposit-amount" min="1" step="0.01" required /></label>
+          <label><span data-i18n="date">Date</span><input type="date" id="scheme-deposit-date" /></label>
+          <label><span data-i18n="paymentMethod">Payment method</span>
+            <select id="scheme-deposit-method">
+              <option value="cash" data-i18n-option="payCash">Cash</option>
+              <option value="esewa" data-i18n-option="payEsewa">eSewa</option>
+              <option value="khalti" data-i18n-option="payKhalti">Khalti</option>
+              <option value="bank" data-i18n-option="payBank">Bank transfer</option>
+            </select>
+          </label>
+        </div>
+        <input type="hidden" id="scheme-deposit-id" />
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" data-close-modal="scheme-deposit-modal" data-i18n="cancel">Cancel</button>
+          <button type="submit" class="btn btn-gold" data-i18n="saveDeposit">Save Deposit</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="old-gold-modal" class="modal">
+      <form id="old-gold-form" method="dialog">
+        <header class="modal-head">
+          <h2>Record Old Gold Exchange</h2>
+          <button type="button" class="icon-btn" id="close-old-gold-modal">×</button>
+        </header>
+        <div class="form-grid">
+          <label class="span-2"><span>Customer Name *</span><input name="customerName" required autocomplete="off" /></label>
+          <label><span>Customer Phone</span><input name="customerPhone" type="tel" /></label>
+          <label><span>Date *</span><input name="date" type="date" required /></label>
+          <label><span>Weight (grams) *</span><input name="weightGrams" type="number" min="0.001" step="any" required /></label>
+          <label><span>Karat</span><select name="karat"><option value="24">24K</option><option value="22" selected>22K</option><option value="18">18K</option><option value="14">14K</option></select></label>
+          <label class="span-2"><span>Buy rate per tola (रू) *</span><input name="ratePerTola" type="number" min="0" step="any" required /></label>
+          <p class="form-hint span-2" id="old-gold-value-preview" style="color:var(--accent,#b8860b);font-weight:600"></p>
+          <label class="span-2"><span>Description</span><input name="description" placeholder="Optional" /></label>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn" id="cancel-old-gold-modal">Cancel</button>
+          <button type="submit" class="btn btn-gold">Record Exchange</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" hidden></div>
+    <datalist id="location-options"></datalist>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="i18n.js?v=7"></script>
+    <script src="auth.js?v=laravel2"></script>
+    <script src="phone.js?v=4"></script>
+    <script src="bg-slider.js"></script>
+    <script src="hero-carousel.js"></script>
+    <script src="ux-improvements.js"></script>
+    <script src="nepali-date.js?v=1"></script>
+    <script src="app.js?v=32"></script>
+    <script src="qrcode.js?v=1"></script>
+    <script src="item-qr.js?v=3"></script>
+    <script src="item-jarti.js?v=12"></script>
+    <script src="order-extras.js?v=2"></script>\n    <script src="settings-karat.js?v=2"></script>
+    <script src="karigar.js?v=4"></script>
+    <script src="options.js?v=4"></script>
+    <script src="nepali-input.js?v=6"></script>
+    <script src="pos-extras.js?v=2"></script>
+    <script src="requests.js?v=2"></script>
+    <script src="customer-link.js?v=1"></script>
+    <script src="dashboard.js?v=1"></script>
+  </body>
+
+  <!-- Option modal -->
+  <dialog id="option-modal" class="modal">
+    <form id="option-form" method="dialog">
+      <div class="modal-head">
+        <h2 id="option-modal-title">New Record</h2>
+        <button type="button" class="icon-btn" id="close-option-modal">×</button>
+      </div>
+      <div class="modal-body form-grid">
+        <label>
+          <span>Type</span>
+          <select name="type" class="input" required>
+            <option value="credit">Credit — given on credit, they will pay the shop</option>
+            <option value="borrow">Borrow — shop took gold/money, shop will return</option>
+            <option value="deposit">Deposit — money/gold kept at the shop for someone</option>
+          </select>
+        </label>
+        <label>
+          <span>Asset</span>
+          <select name="metal" class="input" id="opt-metal-select">
+            <option value="cash">Cash / Money</option>
+            <option value="gold">Gold</option>
+            <option value="silver">Silver</option>
+            <option value="other">Other metal / item</option>
+          </select>
+        </label>
+        <label class="span-2">
+          <span>Name *</span>
+          <input type="text" name="name" class="input" placeholder="Customer / party name" required>
+        </label>
+        <label class="span-2">
+          <span>Item Description</span>
+          <input type="text" name="item" class="input" placeholder="e.g. 22K gold necklace, chain, bangle…">
+        </label>
+        <label id="opt-field-weight">
+          <span>Weight (grams)</span>
+          <input type="number" name="weight-grams" class="input" step="0.001" min="0" placeholder="e.g. 11.664">
+        </label>
+        <label id="opt-field-karat">
+          <span id="opt-karat-label">Karat</span>
+          <select name="karat" class="input" id="opt-karat-select">
+            <option value="24">24K</option>
+            <option value="22" selected>22K</option>
+            <option value="18">18K</option>
+            <option value="14">14K</option>
+          </select>
+        </label>
+        <label id="opt-field-rate">
+          <span>Rate per Tola (NPR) <em style="font-style:normal;font-size:0.72rem;color:var(--muted)">— optional</em></span>
+          <input type="number" name="rate" class="input" step="1" min="0" placeholder="e.g. 130000  (optional)">
+        </label>
+        <label>
+          <span>Amount / Cost (NPR) *</span>
+          <input type="number" name="cost" class="input" step="1" min="0" placeholder="Enter amount or auto-compute from weight × rate" required>
+        </label>
+        <label>
+          <span>Date</span>
+          <input type="date" name="date" class="input">
+        </label>
+        <label>
+          <span>Committed / Due Date</span>
+          <input type="date" name="committed-date" class="input">
+        </label>
+        <label class="span-2">
+          <span>Notes</span>
+          <textarea name="notes" class="input" rows="2" placeholder="Any extra details…" style="resize:vertical"></textarea>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="cancel-option-modal">Cancel</button>
+        <button type="submit" class="btn btn-gold">Save Record</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Record payment history dialog (credit / borrow / deposit) -->
+  <dialog id="opt-pay-modal" class="modal" style="max-width:640px;width:92vw">
+    <div class="modal-head">
+      <h2 id="opt-pay-title" style="font-size:1.05rem">Payments</h2>
+      <button type="button" class="icon-btn" id="close-opt-pay-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="opt-pay-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:0.92rem"></div>
+      <div id="opt-pay-history" style="max-height:260px;overflow-y:auto"></div>
+      <form id="opt-pay-modal-form" style="margin-top:14px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <label style="flex:1;min-width:120px;display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:0.78rem;font-weight:600">Amount (NPR) *</span>
+            <input type="number" name="amount" class="input" min="1" step="1" required>
+          </label>
+          <label style="display:none">
+            <input type="date" name="date" class="input">
+          </label>
+          <label style="flex:2;min-width:160px;display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:0.78rem;font-weight:600">Note (optional)</span>
+            <input type="text" name="note" class="input" placeholder="Cash · Bank transfer · eSewa…">
+          </label>
+          <button type="submit" class="btn btn-gold" id="opt-pay-submit" style="margin-bottom:1px">Done</button>
+          <button type="button" class="btn" id="opt-pay-cancel-edit" style="display:none;margin-bottom:1px">Cancel edit</button>
+        </div>
+        <div id="opt-pay-live-hint" style="font-size:0.82rem;margin-top:8px;min-height:18px;font-weight:600"></div>
+      </form>
+      <p id="opt-pay-linked-hint" style="display:none;color:var(--muted);font-size:0.82rem;margin:10px 0 0"></p>
+    </div>
+  </dialog>
+</html>
