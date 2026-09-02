@@ -97,6 +97,11 @@ class Store
             'schemeCounter' => (int) Pos::num($extras['schemeCounter'] ?? 0),
             'dueCounter' => (int) Pos::num($extras['dueCounter'] ?? 0),
             'requestCounter' => (int) Pos::num($extras['requestCounter'] ?? 0),
+            // Version stamp for the metal rate: when it last changed and from
+            // where ('web' or 'mobile'). Clients compare it to know whether
+            // the number they hold is still the shop's number.
+            'ratesUpdatedAt' => $extras['ratesUpdatedAt'] ?? null,
+            'ratesUpdatedBy' => $extras['ratesUpdatedBy'] ?? null,
         ];
     }
 
@@ -130,6 +135,8 @@ class Store
                 'schemeCounter' => (int) Pos::num($s['schemeCounter'] ?? 0),
                 'dueCounter' => (int) Pos::num($s['dueCounter'] ?? 0),
                 'requestCounter' => (int) Pos::num($s['requestCounter'] ?? 0),
+                'ratesUpdatedAt' => $s['ratesUpdatedAt'] ?? null,
+                'ratesUpdatedBy' => $s['ratesUpdatedBy'] ?? null,
             ]),
             'updated_at' => $s['updatedAt'] ?? Pos::nowIso(),
         ]);

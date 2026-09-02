@@ -35,6 +35,25 @@ class SettingsController extends ApiController
         $now = Pos::nowIso();
         $settings = &$store['settings'];
 
+        // Optimistic concurrency for the rate. A client that says which
+        // version it last saw (`knownRatesUpdatedAt`) is refused when the
+        // server has moved on since — with the current figures in the reply,
+        // so it can show them and let the shopkeeper decide. Clients that
+        // send nothing keep plain last-write-wins.
+        $touchesRate = array_key_exists('goldRatePerTola', $body) || array_key_exists('silverRatePerTola', $body)
+            || array_key_exists('goldBuyRatePerTola', $body) || array_key_exists('goldBuyRatePerGram', $body)
+            || array_key_exists('silverRatePerGram', $body);
+        $known = Pos::str($body['knownRatesUpdatedAt'] ?? '');
+        $current = Pos::str($settings['ratesUpdatedAt'] ?? '');
+        if ($touchesRate && $known !== '' && $current !== '' && strcmp($current, $known) > 0) {
+            return response()->json([
+                'error' => 'The rate was changed on another device since you opened it. Check the new value and save again.',
+                'conflict' => true,
+                'rates' => self::ratesOf($settings),
+            ], 409);
+        }
+        $rateBefore = [$settings['goldRatePerTola'] ?? 0, $settings['silverRatePerTola'] ?? 0, $settings['goldBuyRatePerTola'] ?? 0];
+
         if (array_key_exists('goldRatePerTola', $body) && $body['goldRatePerTola'] !== null) {
             $newRate = Pos::numOrNull($body['goldRatePerTola']);
             if ($newRate === null || $newRate < 0) return $this->fail('Gold rate must be a valid number.');
@@ -126,6 +145,11 @@ class SettingsController extends ApiController
             $settings['itemCategories'] = Pos::normalizeItemCategories($body['itemCategories']);
         }
         $settings['updatedAt'] = $now;
+        $rateAfter = [$settings['goldRatePerTola'] ?? 0, $settings['silverRatePerTola'] ?? 0, $settings['goldBuyRatePerTola'] ?? 0];
+        if ($rateAfter != $rateBefore || ($touchesRate && empty($settings['ratesUpdatedAt']))) {
+            $settings['ratesUpdatedAt'] = $now;
+            $settings['ratesUpdatedBy'] = $request->header('X-SP-Client') === 'mobile' ? 'mobile' : 'web';
+        }
         $settings['goldRatePerGram'] = Pos::round2(Pos::num($settings['goldRatePerTola'] ?? 0) / Pos::TOLA_GRAMS);
         $settings['goldBuyRatePerGram'] = Pos::round2(Pos::num($settings['goldBuyRatePerTola'] ?? 0) / Pos::TOLA_GRAMS);
         $settings = Pos::normalizeSilverRates($settings);
@@ -137,6 +161,34 @@ class SettingsController extends ApiController
             'goldBuyRatePerGram' => Pos::round2(Pos::num($store['settings']['goldBuyRatePerTola'] ?? 0) / Pos::TOLA_GRAMS),
             'rateHistory' => self::historyOf($store),
         ]));
+    }
+
+    /**
+     * GET /settings/rates — the shop's metal rate and its version stamp, and
+     * nothing else. Cheap enough for a phone to call on every foreground and
+     * a browser to poll: the whole reply is a few hundred bytes.
+     */
+    public function rates(Request $request)
+    {
+        $store = $this->readStore($request);
+        return response()->json(self::ratesOf(Pos::normalizeSilverRates($store['settings'])));
+    }
+
+    /** The shape every client reads the rate in: per tola, per gram, when, and from where. */
+    public static function ratesOf(array $settings): array
+    {
+        $gold = Pos::num($settings['goldRatePerTola'] ?? 0);
+        $silver = Pos::num($settings['silverRatePerTola'] ?? 0);
+        $buy = Pos::num($settings['goldBuyRatePerTola'] ?? 0);
+        return [
+            'goldRatePerTola' => $gold,
+            'goldRatePerGram' => Pos::round2($gold / Pos::TOLA_GRAMS),
+            'silverRatePerTola' => $silver,
+            'silverRatePerGram' => Pos::round2($silver / Pos::TOLA_GRAMS),
+            'goldBuyRatePerTola' => $buy,
+            'ratesUpdatedAt' => $settings['ratesUpdatedAt'] ?? null,
+            'ratesUpdatedBy' => $settings['ratesUpdatedBy'] ?? null,
+        ];
     }
 
     /**

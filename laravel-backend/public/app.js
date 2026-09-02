@@ -1522,17 +1522,27 @@ const RATE_SYNC_MS = 60 * 1000;
 let rateSyncTimer = null;
 let rateSyncInFlight = false;
 
+// The version stamp of the rate this page last received from the server.
+// Sent back with every save so a stale tab cannot overwrite a newer rate
+// saved from the phone without the shopkeeper being told.
+let ratesUpdatedAt = null;
+let ratesUpdatedBy = null;
+
 async function syncRatesFromServer() {
   if (rateSyncInFlight || document.hidden) return;
   if (typeof isSignedInSync === 'function' && !isSignedInSync()) return;
   rateSyncInFlight = true;
   try {
-    const settings = await api('/api/settings');
+    // The light endpoint: rate + version stamp only, a few hundred bytes.
+    const settings = await api('/api/settings/rates');
     const gold = Number(settings.goldRatePerTola) || 0;
     const goldBuy = Number(settings.goldBuyRatePerTola) || 0;
     const silver = Number(settings.silverRatePerTola) || 0;
+    const stampChanged = settings.ratesUpdatedAt && settings.ratesUpdatedAt !== ratesUpdatedAt;
+    ratesUpdatedAt = settings.ratesUpdatedAt || ratesUpdatedAt;
+    ratesUpdatedBy = settings.ratesUpdatedBy || ratesUpdatedBy;
     const changed = gold !== goldRateCache || goldBuy !== goldBuyRateCache || silver !== silverRateCache;
-    if (!changed) return;
+    if (!changed && !stampChanged) return;
     goldRateCache = gold;
     goldBuyRateCache = goldBuy;
     silverRateCache = silver;
@@ -1547,12 +1557,22 @@ async function syncRatesFromServer() {
     refreshMetalPriceFields();
     await updateMetalRates(settings);
     refreshDisplayPrices();
-    if (typeof toast === 'function') toast(t('rateUpdatedElsewhere'));
+    renderRateStamp();
+    if (changed && typeof toast === 'function') toast(t('rateUpdatedElsewhere'));
   } catch (err) {
     // Nothing to do — the next focus or tick tries again.
   } finally {
     rateSyncInFlight = false;
   }
+}
+
+/** "Rate last changed 2 Sep 2026, 10:15 from the phone" under the save button. */
+function renderRateStamp() {
+  const el = document.getElementById('settings-updated');
+  if (!el || !ratesUpdatedAt) return;
+  const when = new Date(ratesUpdatedAt);
+  const source = ratesUpdatedBy === 'mobile' ? t('rateSourceMobile') : t('rateSourceWeb');
+  el.textContent = `${t('rateLastChanged')} ${Number.isNaN(when.getTime()) ? ratesUpdatedAt : when.toLocaleString()} · ${source}`;
 }
 
 function startRateSync() {
@@ -3646,7 +3666,12 @@ async function api(path, opts = {}) {
     if (typeof redirectToLogin === 'function') redirectToLogin();
     throw new Error(data.error || 'Sign in required.');
   }
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Request failed');
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   const skipRefresh = path.includes('/api/settings/daily-gold-rate')
     || path.includes('/api/shared/gold-rates')
     || path.includes('/api/customers');
@@ -4106,6 +4131,8 @@ async function loadSettings() {
   settingsCache.goldRatePerTola = goldRateCache;
   settingsCache.goldBuyRatePerTola = goldBuyRateCache;
   settingsCache.silverRatePerTola = silverRateCache;
+  ratesUpdatedAt = settings.ratesUpdatedAt || ratesUpdatedAt;
+  ratesUpdatedBy = settings.ratesUpdatedBy || ratesUpdatedBy;
   rateHistoryCache = (settings.rateHistory || []).map(normalizeRateHistoryRow);
   await loadSharedGoldRates();
   refreshMetalPriceFields();
@@ -4124,6 +4151,7 @@ async function loadSettings() {
   document.getElementById('settings-updated').textContent = settings.updatedAt
     ? `${t('lastSaved')} ${new Date(settings.updatedAt).toLocaleString()}`
     : '';
+  renderRateStamp();
 
   renderRateHistoryChart();
   renderRateHistoryTable();
@@ -7430,13 +7458,30 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
     const fxCad = Number(fd.get('fxCad'));
     if (fxUsd > 0) fxRates.USD = fxUsd;
     if (fxCad > 0) fxRates.CAD = fxCad;
-    const saved = await api('/api/settings', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        goldRatePerTola, goldBuyRatePerTola, silverRatePerTola, priceMode,
-        ...(Object.keys(fxRates).length ? { fxRates } : {})
-      })
-    });
+    let saved;
+    try {
+      saved = await api('/api/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          goldRatePerTola, goldBuyRatePerTola, silverRatePerTola, priceMode,
+          knownRatesUpdatedAt: ratesUpdatedAt,
+          ...(Object.keys(fxRates).length ? { fxRates } : {})
+        })
+      });
+    } catch (err) {
+      // Another device saved a newer rate since this page loaded: pull it in,
+      // show it, and let the shopkeeper decide whether to save over it.
+      if (err && err.status === 409) {
+        ratesUpdatedAt = null;
+        await syncRatesFromServer();
+        toast(t('rateConflict'));
+        return;
+      }
+      throw err;
+    }
+    ratesUpdatedAt = saved.ratesUpdatedAt || ratesUpdatedAt;
+    ratesUpdatedBy = saved.ratesUpdatedBy || 'web';
+    renderRateStamp();
     if (saved.fxRates) {
       settingsCache.fxRates = saved.fxRates;
       settingsCache.fxUpdatedAt = saved.fxUpdatedAt || settingsCache.fxUpdatedAt;
@@ -7617,8 +7662,18 @@ function renderMarketGoldPrice() {
     return `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${pad.l + innerW}" y2="${y.toFixed(1)}" class="gtrend-grid" />
       <text x="${pad.l + innerW + 8}" y="${(y + 4).toFixed(1)}" class="gtrend-ylabel">${formatGoldTrendYLabel(v)}</text>`;
   }).join('');
-  const labelCount = Math.min(6, points.length);
-  const labelIdx = new Set([...Array(labelCount)].map((_, i) => Math.round((i * (points.length - 1)) / Math.max(1, labelCount - 1))));
+  // Labels are picked by how far apart they actually sit, not by index. The x
+  // axis is time-based, so two readings a couple of minutes apart land within a
+  // few pixels of each other; labelling both by index printed them on top of one
+  // another and they read as a single smudged time. Always keep the newest
+  // reading, walk backwards, and only keep an earlier label that clears it.
+  const MIN_LABEL_GAP = 84;
+  const lastIdx = points.length - 1;
+  const keep = [lastIdx];
+  for (let i = lastIdx - 1; i >= 0; i--) {
+    if (px(keep[keep.length - 1]) - px(i) >= MIN_LABEL_GAP) keep.push(i);
+  }
+  const labelIdx = new Set(keep);
   const xLabels = points.map((p, i) => {
     if (!labelIdx.has(i)) return '';
     const anchor = i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle';

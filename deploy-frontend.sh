@@ -8,7 +8,7 @@ set -euo pipefail
 
 HOST="u971057202@88.223.84.40"
 PORT=65002
-REMOTE="/home/u971057202/public_html/frontend-dist"
+REMOTE="/home/u971057202/domains/mysuvarnapasal.com/public_html/frontend-dist"  # served docroot — NOT ~/public_html (see deploy-all.sh)
 SRC="$(cd "$(dirname "$0")" && pwd)/artifacts/subarnapasal/dist/public"
 
 if [ "${1:-}" = "--all" ]; then

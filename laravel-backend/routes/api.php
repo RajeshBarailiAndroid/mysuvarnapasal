@@ -109,6 +109,7 @@ Route::middleware(['attach.user', 'writable', 'shop.lock'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'show']);
 
     Route::get('/settings', [SettingsController::class, 'show']);
+    Route::get('/settings/rates', [SettingsController::class, 'rates']);
     Route::patch('/settings', [SettingsController::class, 'update']);
     Route::post('/settings/daily-gold-rate', [SettingsController::class, 'dailyGoldRate']);
     Route::delete('/settings/rate-history', [SettingsController::class, 'clearRateHistory']);

@@ -102,6 +102,9 @@ class AuthController extends ApiController
             // The mobile app reads `account` straight off the session to decide
             // whether to show the admin tab and the expiry banner.
             'account' => $user->toAccountArray(),
+            // The shop's current metal rate, so a phone has it the moment it
+            // signs in rather than after its first inventory load.
+            'rates' => $this->currentRates($user),
             'user' => [
                 'id' => (string) $user->id,
                 'email' => $user->email,
@@ -228,7 +231,19 @@ class AuthController extends ApiController
             'remainingDays' => $user->remainingDays(),
             'readOnly' => (bool) $user->read_only,
             'mustChangePassword' => (bool) $user->must_change_password,
+            'rates' => $this->currentRates($user),
         ]);
+    }
+
+    /** The shop's rate in the same shape as GET /settings/rates. */
+    private function currentRates(User $user): array
+    {
+        try {
+            $store = $this->store->read((string) $user->id);
+            return SettingsController::ratesOf(Pos::normalizeSilverRates($store['settings']));
+        } catch (\Throwable $e) {
+            return SettingsController::ratesOf([]);
+        }
     }
 
     public function logout(Request $request)
