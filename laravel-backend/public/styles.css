@@ -5835,3 +5835,23 @@ body.auth-page .auth-page-main {
   color: var(--gold);
   white-space: nowrap;
 }
+
+/* ── Market gold price (shared server history) ───────────────────────── */
+.market-price-head { margin-top: 1.75rem; }
+.market-price-hint { margin: -0.25rem 0 0.9rem; }
+.market-price-range { grid-template-columns: repeat(4, 1fr); }
+.market-price-chart { min-height: 120px; }
+.market-price-chart .goldprice-chart-header { margin-bottom: 0.5rem; }
+.market-price-history { margin-top: 0.75rem; }
+.market-price-history summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--gold-dark);
+  padding: 0.5rem 0;
+}
+.market-price-history summary span:last-child { color: var(--muted); font-weight: 500; }
+.market-price-history .data-table td.num, .market-price-history .data-table th.num { text-align: right; white-space: nowrap; }
+.market-price-history .data-table td.is-up { color: #15803d; }
+.market-price-history .data-table td.is-down { color: #b91c1c; }
+.market-price-history .table-wrap { max-height: 420px; overflow-y: auto; }
+.market-price-empty { padding: 1.5rem 0.5rem; color: var(--muted); }

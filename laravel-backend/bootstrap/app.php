@@ -4,6 +4,7 @@ use App\Http\Middleware\AttachUser;
 use App\Http\Middleware\AutoSync;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureWritable;
+use App\Http\Middleware\SerializeShopWrites;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,6 +23,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'attach.user' => AttachUser::class,
             'admin' => EnsureAdmin::class,
             'writable' => EnsureWritable::class,
+            'shop.lock' => SerializeShopWrites::class,
         ]);
         $middleware->appendToGroup('api', AutoSync::class);
     })

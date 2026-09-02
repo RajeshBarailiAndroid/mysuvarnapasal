@@ -59,11 +59,20 @@ class SyncController extends ApiController
                 // overwrite primitive for anyone holding the sync token, which
                 // is account takeover for every shop on this server.
                 // Credentials do not replicate.
+                // SECURITY: 'email' and 'username' are not accepted either.
+                // Changing an account's email through sync would redirect
+                // its password-reset mail, and changing the username lets
+                // one account impersonate another at login. Neither is
+                // something a desktop backup should be able to do.
+                // Administrator rows, and any row carrying an admin/status
+                // flag, are never touched from here.
                 $row = array_intersect_key($u, array_flip([
-                    'id', 'name', 'username', 'phone', 'email', 'email_verified_at',
-                    'created_at', 'updated_at',
+                    'id', 'name', 'phone', 'email_verified_at', 'created_at', 'updated_at',
                 ]));
-                DB::table('users')->updateOrInsert(['id' => $row['id']], $row);
+                $existing = DB::table('users')->where('id', $row['id'])->first();
+                if ($existing && $existing->is_admin) continue;
+                if (!$existing) continue;   // accounts are created by signup, never by sync
+                DB::table('users')->where('id', $row['id'])->update($row);
             }
             return response()->json(['ok' => true, 'kind' => 'users', 'count' => count($users)]);
         }
@@ -84,13 +93,28 @@ class SyncController extends ApiController
         ]);
     }
 
-    public function run(SyncService $sync)
+    /**
+     * Desktop → server replication. On the shared server itself only the
+     * administrator may trigger or inspect it: a shop must not be able to
+     * kick off a push of every account, nor read the sync server's host and
+     * last error.
+     */
+    private function desktopOrAdmin(Request $request): bool
     {
+        if (!\App\Http\Middleware\AttachUser::authEnabled()) return true;   // single-shop desktop
+        $user = $request->attributes->get('authUser');
+        return $user && $user->is_admin;
+    }
+
+    public function run(Request $request, SyncService $sync)
+    {
+        if (!$this->desktopOrAdmin($request)) return $this->fail('Not found.', 404);
         return response()->json($sync->run());
     }
 
-    public function status(SyncService $sync)
+    public function status(Request $request, SyncService $sync)
     {
+        if (!$this->desktopOrAdmin($request)) return $this->fail('Not found.', 404);
         return response()->json($sync->status());
     }
 

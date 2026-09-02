@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 
 class ItemController extends ApiController
 {
+    private const AMOUNT_FIELDS = ['karat', 'weightGrams', 'makingCharge', 'jartiRateValue', 'purchaseCost', 'salePrice', 'customRatePerTola', 'quantity', 'stoneAmount'];
+
     /** Sequential unique item number: ITM-0001, ITM-0002, … */
     private static function nextItemNumber(array &$store): string
     {
@@ -72,6 +74,7 @@ class ItemController extends ApiController
         $store = $this->readStore($request);
         $body = $request->json()->all();
         if (empty($body['name']) || empty($body['sku'])) return $this->fail('Name and SKU are required.');
+        if ($amountError = Pos::amountError($body, self::AMOUNT_FIELDS)) return $this->fail($amountError);
         $metalError = Pos::validateInventoryMetalFields($body);
         if ($metalError) return $this->fail($metalError);
         foreach ($store['items'] as $i) {
@@ -93,7 +96,7 @@ class ItemController extends ApiController
             'purchaseCost' => Pos::num($body['purchaseCost'] ?? 0),
             'salePrice' => Pos::num($body['salePrice'] ?? 0),
             'customRatePerTola' => Pos::num($body['customRatePerTola'] ?? 0),
-            'quantity' => max(0, Pos::num($body['quantity'] ?? 0)),
+            'quantity' => (int) max(0, floor(Pos::num($body['quantity'] ?? 0))),
             'status' => $body['status'] ?? 'in_stock',
             'location' => Pos::str($body['location'] ?? ''),
             'hallmark' => !empty($body['hallmark']),
@@ -117,6 +120,7 @@ class ItemController extends ApiController
         $existing = $store['items'][$idx];
         if (Pos::isItemSoldOut($existing)) return $this->fail('Sold out items cannot be edited.');
         $body = $request->json()->all();
+        if ($amountError = Pos::amountError($body, self::AMOUNT_FIELDS)) return $this->fail($amountError);
         if (!empty($body['sku']) && $body['sku'] !== $existing['sku']) {
             foreach ($store['items'] as $i) {
                 if (($i['sku'] ?? null) === $body['sku']) return $this->fail('SKU already exists.');
@@ -145,7 +149,7 @@ class ItemController extends ApiController
             'purchaseCost' => ($body['purchaseCost'] ?? null) !== null ? Pos::num($body['purchaseCost']) : $existing['purchaseCost'],
             'salePrice' => ($body['salePrice'] ?? null) !== null ? Pos::num($body['salePrice']) : ($existing['salePrice'] ?? 0),
             'customRatePerTola' => ($body['customRatePerTola'] ?? null) !== null ? Pos::num($body['customRatePerTola']) : ($existing['customRatePerTola'] ?? 0),
-            'quantity' => ($body['quantity'] ?? null) !== null ? Pos::num($body['quantity']) : $existing['quantity'],
+            'quantity' => ($body['quantity'] ?? null) !== null ? (int) max(0, floor(Pos::num($body['quantity']))) : $existing['quantity'],
             'status' => ($body['status'] ?? null) !== null ? $body['status'] : $existing['status'],
             'location' => ($body['location'] ?? null) !== null ? Pos::str($body['location']) : ($existing['location'] ?? ''),
             'hallmark' => ($body['hallmark'] ?? null) !== null ? (bool) $body['hallmark'] : $existing['hallmark'],

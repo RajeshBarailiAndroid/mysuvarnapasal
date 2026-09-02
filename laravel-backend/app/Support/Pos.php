@@ -22,7 +22,36 @@ class Pos
     {
         if (is_bool($v)) return $v ? 1 : $fallback;
         if ($v === null || $v === '' || !is_numeric($v)) return $fallback;
-        return (float) $v;
+        $f = (float) $v;
+        // "1e400" is numeric but INF, and INF cannot be JSON-encoded — the
+        // request would end in a 500 instead of a validation message.
+        return is_finite($f) ? $f : $fallback;
+    }
+
+    /** The largest amount/weight/quantity a request may carry. */
+    public const MAX_AMOUNT = 1e12;
+
+    /**
+     * Rejects amounts that cannot be right: negative, non-finite or absurdly
+     * large. Fields that are absent or null are skipped (updates send only
+     * what changed). Returns the first problem as a message, or null.
+     */
+    public static function amountError(array $body, array $fields): ?string
+    {
+        foreach ($fields as $field) {
+            if (!array_key_exists($field, $body) || $body[$field] === null || $body[$field] === '') continue;
+            $v = $body[$field];
+            if (is_bool($v) || !is_numeric($v)) return ucfirst(self::humanField($field)) . ' must be a number.';
+            $f = (float) $v;
+            if (!is_finite($f) || $f > self::MAX_AMOUNT) return ucfirst(self::humanField($field)) . ' is too large.';
+            if ($f < 0) return ucfirst(self::humanField($field)) . ' cannot be negative.';
+        }
+        return null;
+    }
+
+    private static function humanField(string $field): string
+    {
+        return strtolower(trim(preg_replace('/([A-Z])/', ' $1', $field)));
     }
 
     /** Strict Number(x): returns null when not finite (like Number.isFinite guard). */
@@ -31,7 +60,7 @@ class Pos
         if ($v === null) return null;
         if ($v === '') return null;
         if (is_bool($v)) return $v ? 1.0 : 0.0;
-        if (is_numeric($v)) return (float) $v;
+        if (is_numeric($v)) { $f = (float) $v; return is_finite($f) ? $f : null; }
         return null;
     }
 

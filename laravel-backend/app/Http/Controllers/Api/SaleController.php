@@ -32,6 +32,10 @@ class SaleController extends ApiController
         foreach ($rawLines as $raw) {
             if (!is_array($raw)) $raw = [];
             $qty = max(1, (int) floor(Pos::num($raw['quantity'] ?? 0, 0) ?: 1));
+            if ($qty > 100000) return $this->fail('Quantity on a line is too large.');
+            if ($err = Pos::amountError($raw, ['unitPrice', 'price', 'weightGrams', 'karat', 'makingCharge', 'jartiRateValue', 'customRatePerTola', 'stoneAmount'])) {
+                return $this->fail($err);
+            }
             if (!empty($raw['itemId']) && empty($raw['custom']) && empty($raw['fromOrder'])) {
                 $item = null;
                 foreach ($store['items'] as $i) if (($i['id'] ?? null) === $raw['itemId']) { $item = $i; break; }
@@ -78,6 +82,7 @@ class SaleController extends ApiController
 
         // 2) Totals (all amounts in NPR; server-side math is authoritative).
         $subtotal = array_sum(array_map(fn ($l) => $l['lineTotal'], $lines));
+        if ($err = Pos::amountError($body, ['discount', 'taxValue', 'paidNow', 'paid', 'amountPaid'])) return $this->fail($err);
         $discount = min(max(0, (int) round(Pos::num($body['discount'] ?? 0))), $subtotal);
         $afterDiscount = $subtotal - $discount;
         $taxType = (($body['taxType'] ?? null) === null || ($body['taxType'] ?? null) === 'percent') ? 'percent' : 'flat';

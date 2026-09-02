@@ -297,11 +297,14 @@
   //
   // ?api=http://localhost:8080 points either mode at a different API host.
   var params = new URLSearchParams(location.search);
-  var API_BASE = (params.get('api') || '').replace(/\/+$/, '');
+  // Same origin only. A ?api= override let a crafted link send the shop's
+  // saved login token to any host the link named — with ?token= on top of
+  // that putting the token itself into browser history and server logs.
+  var API_BASE = '';
   var pathCode = (location.pathname.match(/\/order\/([A-Za-z0-9]{8,64})\/?$/) || [])[1] || '';
   var SHOP = (params.get('shop') || pathCode || '').replace(/[^A-Za-z0-9]/g, '');
-  var TOKEN = SHOP ? '' : (params.get('token') || readLS('sp_auth_token') || '');
-  var TOLA_GRAMS = 11.6638;
+  var TOKEN = SHOP ? '' : (readLS('sp_auth_token') || '');
+  var TOLA_GRAMS = 11.664;   // same figure as app.js and the Android app
 
   // Endpoints for the mode we are in.
   var EP = SHOP

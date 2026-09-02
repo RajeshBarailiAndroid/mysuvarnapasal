@@ -145,16 +145,30 @@ class AuthController extends ApiController
             return $this->fail($err);
         }
         if (User::where('username', $username)->exists()) return $this->fail('That username is already taken.', 409);
+        // One account per email / phone: password resets go by email, so two
+        // shops sharing one address would let either reset the other.
+        if ($email !== '' && User::whereRaw('LOWER(email) = ?', [strtolower($email)])->exists()) {
+            return $this->fail('An account with that email address already exists.', 409);
+        }
+        if ($phone !== '' && User::where('phone', $phone)->exists()) {
+            return $this->fail('An account with that mobile number already exists.', 409);
+        }
 
-        $user = User::create([
-            'name' => $fullName,
-            'username' => $username,
-            'email' => $email !== '' ? strtolower($email) : null,
-            'phone' => $phone !== '' ? $phone : null,
-            'password' => $password,
-            'status' => User::STATUS_PENDING,
-            'status_changed_at' => now(),
-        ]);
+        try {
+            $user = User::create([
+                'name' => $fullName,
+                'username' => $username,
+                'email' => $email !== '' ? strtolower($email) : null,
+                'phone' => $phone !== '' ? $phone : null,
+                'password' => $password,
+                'status' => User::STATUS_PENDING,
+                'status_changed_at' => now(),
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Two signups for the same username in the same instant: the
+            // unique index wins, and the loser gets a 409, not a 500.
+            return $this->fail('That username is already taken.', 409);
+        }
         $this->store->ensureUserSettings((string) $user->id);
 
         Log::info('auth.signup_pending', ['username' => $username, 'ip' => $request->ip()]);
@@ -268,6 +282,12 @@ class AuthController extends ApiController
         ]);
 
         if ($email === '' && $username === '') return $neutral;
+
+        // Per-target limit as well as the per-IP throttle on the route: a
+        // pool of IPs must not be able to flood one shop's inbox with links.
+        $targetKey = 'forgot:' . sha1($email !== '' ? $email : 'u:' . $username);
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($targetKey, 3)) return $neutral;
+        \Illuminate\Support\Facades\RateLimiter::hit($targetKey, 15 * 60);
 
         $query = User::query();
         if ($username !== '') $query->where('username', $username);

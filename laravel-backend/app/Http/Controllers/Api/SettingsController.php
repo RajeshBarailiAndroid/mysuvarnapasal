@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Services\SharedRates;
 use App\Support\Pos;
 use App\Support\StoreLogic;
 use Illuminate\Http\Request;
@@ -13,14 +12,9 @@ class SettingsController extends ApiController
     {
         $store = $this->readStore($request);
         $settings = Pos::normalizeSilverRates($store['settings']);
-        if (Pos::num($settings['goldRatePerTola'] ?? 0) > 0 && ($settings['priceMode'] ?? 'manual') !== 'api') {
-            SharedRates::appendHistory([
-                'goldRatePerTola' => $settings['goldRatePerTola'],
-                'goldRatePerGram' => $settings['goldRatePerGram'],
-                'priceMode' => 'manual',
-            ]);
-        }
-        $shared = SharedRates::read();
+        // A shop's own rate history. It used to be appended to the GLOBAL
+        // shared_gold_rates row on every read, which published every shop's
+        // private selling rate to every other shop.
         return response()->json(array_merge($settings, [
             // null (not 'NP') when the shop has never picked a location — the
             // frontend auto-detects the country once and saves it back.
@@ -30,7 +24,7 @@ class SettingsController extends ApiController
             'itemCategories' => StoreLogic::getStoreItemCategories($store),
             'goldRatePerGram' => Pos::round2(Pos::num($settings['goldRatePerTola'] ?? 0) / Pos::TOLA_GRAMS),
             'goldBuyRatePerGram' => Pos::round2(Pos::num($settings['goldBuyRatePerTola'] ?? 0) / Pos::TOLA_GRAMS),
-            'rateHistory' => $shared['history'] ?? [],
+            'rateHistory' => self::historyOf($store),
         ]));
     }
 
@@ -45,11 +39,11 @@ class SettingsController extends ApiController
             $newRate = Pos::numOrNull($body['goldRatePerTola']);
             if ($newRate === null || $newRate < 0) return $this->fail('Gold rate must be a valid number.');
             $settings['goldRatePerTola'] = $newRate;
-            SharedRates::appendHistory([
-                'goldRatePerTola' => $newRate,
-                'goldRatePerGram' => Pos::round2($newRate / Pos::TOLA_GRAMS),
-                'priceMode' => 'manual',
-            ]);
+            $settings['rateHistory'] = self::appendOwnHistory(
+                $settings['rateHistory'] ?? [],
+                $newRate,
+                Pos::round2($newRate / Pos::TOLA_GRAMS)
+            );
         }
         if (($body['goldBuyRatePerTola'] ?? null) !== null) {
             $buyRate = Pos::numOrNull($body['goldBuyRatePerTola']);
@@ -137,35 +131,88 @@ class SettingsController extends ApiController
         $settings = Pos::normalizeSilverRates($settings);
         unset($settings);
         $this->writeStore($request, $store);
-        $shared = SharedRates::read();
         return response()->json(array_merge($store['settings'], [
             'locations' => StoreLogic::getStoreLocations($store),
             'itemCategories' => StoreLogic::getStoreItemCategories($store),
             'goldBuyRatePerGram' => Pos::round2(Pos::num($store['settings']['goldBuyRatePerTola'] ?? 0) / Pos::TOLA_GRAMS),
-            'rateHistory' => $shared['history'] ?? [],
+            'rateHistory' => self::historyOf($store),
         ]));
     }
 
+    /**
+     * The web app's "record today's rate" snapshot. Per shop: it goes into
+     * the shop's own settings.rateHistory, never the global row. The
+     * `priceMode` and `localDate` the browser used to send are ignored —
+     * the server's clock and "manual" are the only honest values here.
+     */
     public function dailyGoldRate(Request $request)
     {
         $body = $request->json()->all();
         $tola = Pos::numOrNull($body['goldRatePerTola'] ?? null);
-        if ($tola === null || $tola < 0) return $this->fail('Gold rate must be a valid number.');
-        $gram = Pos::num($body['goldRatePerGram'] ?? 0) ?: Pos::round2($tola / Pos::TOLA_GRAMS);
-        $priceMode = ($body['priceMode'] ?? '') === 'api' ? 'api' : 'manual';
-        $result = SharedRates::appendHistory([
-            'goldRatePerTola' => $tola, 'goldRatePerGram' => $gram,
-            'priceMode' => $priceMode, 'localDate' => $body['localDate'] ?? null,
-        ]);
-        $shared = SharedRates::read();
-        return response()->json(['changed' => $result['changed'], 'rateHistory' => $shared['history'] ?? []]);
+        if ($tola === null || $tola < 0 || !is_finite($tola)) return $this->fail('Gold rate must be a valid number.');
+        $gram = Pos::round2($tola / Pos::TOLA_GRAMS);
+        $store = $this->readStore($request);
+        $before = count($store['settings']['rateHistory'] ?? []);
+        $store['settings']['rateHistory'] = self::appendOwnHistory($store['settings']['rateHistory'] ?? [], $tola, $gram);
+        $changed = count($store['settings']['rateHistory']) !== $before;
+        if ($changed) $this->writeStore($request, $store);
+        return response()->json(['changed' => $changed, 'rateHistory' => self::historyOf($store)]);
     }
 
+    /** Clears THIS shop's rate history only. */
     public function clearRateHistory(Request $request)
     {
-        $priceMode = $request->query('priceMode') === 'api' ? 'api' : 'manual';
-        $result = SharedRates::clear($priceMode);
-        return response()->json(['rateHistory' => $result['history']]);
+        $store = $this->readStore($request);
+        $store['settings']['rateHistory'] = [];
+        $this->writeStore($request, $store);
+        return response()->json(['rateHistory' => []]);
+    }
+
+    // ── per-shop rate history ───────────────────────────────────────────
+
+    private const MAX_OWN_HISTORY = 2000;
+
+    /** Newest first, in the shape the web chart already understands. */
+    private static function historyOf(array $store): array
+    {
+        $rows = array_values(array_filter((array) ($store['settings']['rateHistory'] ?? []), 'is_array'));
+        $rows = array_map(fn ($r) => [
+            'date' => substr(Pos::str($r['date'] ?? '') ?: substr((string) ($r['updatedAt'] ?? ''), 0, 10), 0, 10),
+            'updatedAt' => (string) ($r['updatedAt'] ?? ''),
+            'goldRatePerTola' => Pos::num($r['goldRatePerTola'] ?? 0),
+            'goldRatePerGram' => Pos::num($r['goldRatePerGram'] ?? 0),
+            'priceMode' => 'manual',
+        ], $rows);
+        usort($rows, fn ($a, $b) => strcmp($b['updatedAt'], $a['updatedAt']));
+        return $rows;
+    }
+
+    /**
+     * Appends a reading unless it repeats the newest one for the same day.
+     * One second is added when two saves land inside the same second, so
+     * the chart never receives two points with the same timestamp.
+     */
+    private static function appendOwnHistory(array $history, float $tola, float $gram): array
+    {
+        if ($tola <= 0) return $history;
+        $history = array_values(array_filter($history, 'is_array'));
+        usort($history, fn ($a, $b) => strcmp((string) ($b['updatedAt'] ?? ''), (string) ($a['updatedAt'] ?? '')));
+        $last = $history[0] ?? null;
+        $now = Pos::nowIso();
+        $today = substr($now, 0, 10);
+        if ($last
+            && Pos::num($last['goldRatePerTola'] ?? 0) == $tola
+            && substr((string) ($last['date'] ?? ''), 0, 10) === $today) {
+            return $history;
+        }
+        if ($last && strtotime((string) ($last['updatedAt'] ?? '')) >= time()) {
+            $now = gmdate('Y-m-d\TH:i:s', strtotime($last['updatedAt']) + 1) . '.000Z';
+        }
+        array_unshift($history, [
+            'date' => $today, 'updatedAt' => $now,
+            'goldRatePerTola' => $tola, 'goldRatePerGram' => $gram, 'priceMode' => 'manual',
+        ]);
+        return array_slice($history, 0, self::MAX_OWN_HISTORY);
     }
 
     public function shopNameAvailable(Request $request)

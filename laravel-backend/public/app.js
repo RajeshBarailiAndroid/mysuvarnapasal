@@ -816,6 +816,9 @@ function hydrateLiveDailySecondSeriesFromTicks(ticks) {
 
 async function loadSharedGoldRates() {
   const mode = currentRateHistoryPriceMode();
+  // The shared feed is the market (api) price only. A shop's own manual
+  // rate history comes with /api/settings and is private to the shop.
+  if (mode !== 'api') return;
   try {
     const payload = await api(
       `/api/shared/gold-rates?date=${encodeURIComponent(todayDateStr())}&priceMode=${encodeURIComponent(mode)}`
@@ -868,6 +871,8 @@ function scheduleSharedGraphTickFlush() {
 
 async function flushSharedGraphTicks() {
   if (!sharedTickQueue.size) return;
+  // Only the market feed is shared; a shop's manual readings stay local.
+  if (!isLiveDailyApiMode()) { sharedTickQueue.clear(); return; }
   const ticks = [...sharedTickQueue.values()];
   sharedTickQueue.clear();
   if (sharedTickFlushTimer) {
@@ -1507,6 +1512,58 @@ function syncMetalRatePolling() {
   }, METAL_RATE_POLL_MS);
 }
 
+// ── keeping the rate in step with the phone ──────────────────────────────
+// The server holds one rate for the shop and whichever side saved last wins.
+// This page loaded its copy once; the phone may have saved since. So the rate
+// is re-read from the server whenever this tab comes back into view and once
+// a minute while it stays open, and applied only when it actually changed —
+// a silent no-op the rest of the time.
+const RATE_SYNC_MS = 60 * 1000;
+let rateSyncTimer = null;
+let rateSyncInFlight = false;
+
+async function syncRatesFromServer() {
+  if (rateSyncInFlight || document.hidden) return;
+  if (typeof isSignedInSync === 'function' && !isSignedInSync()) return;
+  rateSyncInFlight = true;
+  try {
+    const settings = await api('/api/settings');
+    const gold = Number(settings.goldRatePerTola) || 0;
+    const goldBuy = Number(settings.goldBuyRatePerTola) || 0;
+    const silver = Number(settings.silverRatePerTola) || 0;
+    const changed = gold !== goldRateCache || goldBuy !== goldBuyRateCache || silver !== silverRateCache;
+    if (!changed) return;
+    goldRateCache = gold;
+    goldBuyRateCache = goldBuy;
+    silverRateCache = silver;
+    settingsCache.goldRatePerTola = gold;
+    settingsCache.goldBuyRatePerTola = goldBuy;
+    settingsCache.silverRatePerTola = silver;
+    if (Array.isArray(settings.rateHistory)) {
+      rateHistoryCache = settings.rateHistory.map(normalizeRateHistoryRow);
+      renderRateHistoryChart();
+      renderRateHistoryTable();
+    }
+    refreshMetalPriceFields();
+    await updateMetalRates(settings);
+    refreshDisplayPrices();
+    if (typeof toast === 'function') toast(t('rateUpdatedElsewhere'));
+  } catch (err) {
+    // Nothing to do — the next focus or tick tries again.
+  } finally {
+    rateSyncInFlight = false;
+  }
+}
+
+function startRateSync() {
+  if (rateSyncTimer) return;
+  rateSyncTimer = setInterval(() => { syncRatesFromServer().catch(() => {}); }, RATE_SYNC_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncRatesFromServer().catch(() => {});
+  });
+  window.addEventListener('focus', () => { syncRatesFromServer().catch(() => {}); });
+}
+
 async function seedTodayRateReading() {
   await captureLiveDailyRate();
 }
@@ -1640,13 +1697,19 @@ function syncSettingsSilverRateFromTola() {
 function refreshMetalPriceFields() {
   const priceForm = document.getElementById('settings-form');
   if (!priceForm) return;
-  const metal = effectivePriceMode() === 'manual'
-    ? readManualRatesFromForm()
-    : {
-      goldRatePerTola: goldRateCache,
-      goldBuyRatePerTola: goldBuyRateCache,
-      silverRatePerTola: silverRateCache
-    };
+  // The caches ARE the shop's rate: loadSettings fills them from the server,
+  // and a save fills them from what was just sent. The form must follow them,
+  // never the other way round — otherwise a rate saved on the phone can never
+  // replace the number this page loaded earlier, and that stale number is
+  // what the next save would send back to the server.
+  const metal = {
+    goldRatePerTola: goldRateCache,
+    goldBuyRatePerTola: goldBuyRateCache,
+    silverRatePerTola: silverRateCache
+  };
+  // A field the shopkeeper is typing in is theirs until they leave it.
+  const active = document.activeElement;
+  const isEditing = (field) => field && active === field;
   const goldGramField = priceForm.goldRatePerGram;
   const goldTolaField = priceForm.goldRatePerTola;
   const goldBuyGramField = priceForm.goldBuyRatePerGram;
@@ -1655,27 +1718,27 @@ function refreshMetalPriceFields() {
   const silverTolaField = priceForm.silverRatePerTola;
   const rateStep = currencyCode() === 'NPR' ? '1' : '0.01';
   if (goldGramField) {
-    goldGramField.value = formatGramRateFromTola(metal.goldRatePerTola);
+    if (!isEditing(goldGramField)) goldGramField.value = formatGramRateFromTola(metal.goldRatePerTola);
     goldGramField.step = rateStep;
   }
   if (goldTolaField) {
-    goldTolaField.value = formatTolaRateInput(metal.goldRatePerTola);
+    if (!isEditing(goldTolaField)) goldTolaField.value = formatTolaRateInput(metal.goldRatePerTola);
     goldTolaField.step = rateStep;
   }
   if (goldBuyGramField) {
-    goldBuyGramField.value = formatGramRateFromTola(metal.goldBuyRatePerTola || goldBuyRateCache);
+    if (!isEditing(goldBuyGramField)) goldBuyGramField.value = formatGramRateFromTola(metal.goldBuyRatePerTola);
     goldBuyGramField.step = rateStep;
   }
   if (goldBuyTolaField) {
-    goldBuyTolaField.value = formatTolaRateInput(metal.goldBuyRatePerTola || goldBuyRateCache);
+    if (!isEditing(goldBuyTolaField)) goldBuyTolaField.value = formatTolaRateInput(metal.goldBuyRatePerTola);
     goldBuyTolaField.step = rateStep;
   }
   if (silverGramField) {
-    silverGramField.value = formatGramRateFromTola(metal.silverRatePerTola);
+    if (!isEditing(silverGramField)) silverGramField.value = formatGramRateFromTola(metal.silverRatePerTola);
     silverGramField.step = '0.01';
   }
   if (silverTolaField) {
-    silverTolaField.value = formatTolaRateInput(metal.silverRatePerTola);
+    if (!isEditing(silverTolaField)) silverTolaField.value = formatTolaRateInput(metal.silverRatePerTola);
     silverTolaField.step = rateStep;
   }
   refreshCurrencyLabels();
@@ -3578,6 +3641,8 @@ async function api(path, opts = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) {
+    // The token is dead; drop it so background pollers stop sending it.
+    try { localStorage.removeItem('sp_auth_token'); } catch (_) { /* ignore */ }
     if (typeof redirectToLogin === 'function') redirectToLogin();
     throw new Error(data.error || 'Sign in required.');
   }
@@ -4065,6 +4130,7 @@ async function loadSettings() {
   renderLiveDailyRateNow();
   syncMetalRatePolling();
   updateShopBranding();
+  startRateSync();
 }
 
 function showView(name) {
@@ -4084,6 +4150,8 @@ function showView(name) {
   updateShopBranding(name);
 
   if (name !== 'calculator') document.getElementById('quick-calc-modal')?.close();
+
+  syncMarketPricePolling();
 
   if (name === 'orders') {
     if (ordersAllCache.length) renderOrdersView();
@@ -6920,7 +6988,15 @@ document.getElementById('inventory-table')?.addEventListener('click', async (e) 
   }
 });
 
-document.getElementById('search-items')?.addEventListener('input', () => loadInventory());
+// Search boxes: debounced, and a failed fetch is shown rather than lost.
+function debounced(fn, ms = 200) {
+  let timer = null;
+  return () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { fn().catch((err) => toast(err.message)); }, ms);
+  };
+}
+document.getElementById('search-items')?.addEventListener('input', debounced(() => loadInventory()));
 document.getElementById('search-orders')?.addEventListener('input', applyOrdersSearch);
 document.getElementById('order-group-tabs')?.addEventListener('click', (e) => {
   const tab = e.target.closest('[data-order-group]');
@@ -6972,13 +7048,13 @@ document.addEventListener('click', (e) => {
   }
 });
 document.getElementById('pos-theme-toggle')?.addEventListener('click', toggleTheme);
-document.getElementById('pos-search')?.addEventListener('input', () => loadPOS());
+document.getElementById('pos-search')?.addEventListener('input', debounced(() => loadPOS()));
 document.getElementById('pos-search')?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
   quickAddFromSearch().catch((err) => toast(err.message));
 });
-document.getElementById('pos-filter-category')?.addEventListener('change', () => loadPOS());
+document.getElementById('pos-filter-category')?.addEventListener('change', () => loadPOS().catch((err) => toast(err.message)));
 document.getElementById('pos-sort')?.addEventListener('change', () => {
   renderPosCatalog();
 });
@@ -7399,6 +7475,275 @@ document.querySelector('#settings-form [name="goldBuyRatePerTola"]')?.addEventLi
 document.querySelector('#settings-form [name="silverRatePerGram"]')?.addEventListener('input', syncSettingsSilverRateFromGram);
 document.querySelector('#settings-form [name="silverRatePerTola"]')?.addEventListener('input', syncSettingsSilverRateFromTola);
 document.getElementById('clear-rate-history-btn')?.addEventListener('click', clearRateHistoryForCurrentMode);
+// ── Market gold price ───────────────────────────────────────────────────
+// The international price, fetched by the SERVER from the metal API every 15
+// minutes and kept in full in gold_price_ticks. This page only reads
+// /api/gold-price; it never talks to the metal API itself, so every shop and
+// every phone draws the same chart from the same rows. Reference only — the
+// shop's selling rate (settings-form above) is what prices items.
+const MARKET_PRICE_REFRESH_MS = 5 * 60 * 1000;
+let marketPriceRange = '24h';
+let marketPriceData = null;
+let marketPriceTimer = null;
+let marketPriceLoading = false;
+
+function currentMarketRange() {
+  const active = document.querySelector('.market-price-range [data-market-range].is-active');
+  return active?.dataset.marketRange || marketPriceRange;
+}
+
+function marketRangeLabel(range) {
+  const keys = { '24h': 'marketRange24h', week: 'marketRangeWeek', month: 'marketRangeMonth', '6m': 'marketRange6m' };
+  return t(keys[range] || 'marketRange24h');
+}
+
+function formatMarketWhen(iso, range) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso || '';
+  if (range === '24h') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (range === 'week') return d.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  if (range === 'month') return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function formatMarketWhenFull(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? (iso || '') : d.toLocaleString();
+}
+
+async function loadMarketGoldPrice(range = currentMarketRange()) {
+  const chartEl = document.getElementById('market-price-chart');
+  if (!chartEl || marketPriceLoading) return;
+  marketPriceLoading = true;
+  marketPriceRange = range;
+  try {
+    // Plain fetch, not api(): this endpoint is public and must not redirect
+    // to login or trigger the mutation refresh.
+    const headers = {};
+    if (typeof getAuthAccessToken === 'function') {
+      const token = await getAuthAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(`/api/gold-price?range=${encodeURIComponent(range)}`, { headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      marketPriceData = null;
+      chartEl.innerHTML = `<p class="empty market-price-empty">${escapeHtml(data.error || t('marketPriceUnavailable'))}</p>`;
+      renderMarketPriceTable(null);
+      return;
+    }
+    marketPriceData = data;
+    renderMarketGoldPrice();
+  } catch (err) {
+    chartEl.innerHTML = `<p class="empty market-price-empty">${t('marketPriceUnavailable')}</p>`;
+  } finally {
+    marketPriceLoading = false;
+  }
+}
+
+function renderMarketGoldPrice() {
+  const el = document.getElementById('market-price-chart');
+  if (!el) return;
+  const data = marketPriceData;
+  if (!data || !Array.isArray(data.points) || !data.points.length) {
+    el.innerHTML = `<p class="empty market-price-empty">${t('marketPriceEmpty')}</p>`;
+    renderMarketPriceTable(null);
+    return;
+  }
+  const points = data.points;
+  const range = data.range || marketPriceRange;
+  const latest = data.latest || points[points.length - 1];
+  const change = Number(data.change) || 0;
+  const pct = Number(data.changePercent) || 0;
+  const dir = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
+  const sign = change > 0 ? '+' : '';
+  const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '—';
+
+  const header = `
+    <div class="goldprice-chart-header">
+      <div class="goldprice-header-main">
+        <div class="goldprice-brand">
+          <span class="goldprice-icon" aria-hidden="true">●</span>
+          <div>
+            <h4 class="goldprice-title">${t('marketGoldPrice')}</h4>
+            <span class="goldprice-sub">${marketRangeLabel(range)} · ${escapeHtml(latest.source || 'gold-api.com')}</span>
+          </div>
+        </div>
+        <div class="goldprice-quote is-${dir}">
+          <span class="goldprice-value">${formatCurrencyAmount(latest.goldPerTola)}</span>
+          <span class="goldprice-unit">/ ${t('tolaUnit')}</span>
+          <span class="goldprice-change">
+            <span class="goldprice-arrow" aria-hidden="true">${arrow}</span>
+            ${sign}${formatCurrencyAmount(change)}
+            <span class="goldprice-pct">(${sign}${pct}%)</span>
+          </span>
+        </div>
+      </div>
+      <div class="goldprice-stats">
+        <span class="goldprice-stat"><em>${t('marketPricePerGram')}</em> ${formatCurrencyAmount(latest.goldPerGram)}</span>
+        <span class="goldprice-stat"><em>${t('chartHigh')}</em> ${formatCurrencyAmount(data.high)}</span>
+        <span class="goldprice-stat"><em>${t('chartLow')}</em> ${formatCurrencyAmount(data.low)}</span>
+        <span class="goldprice-stat"><em>${t('marketPriceUsdOz')}</em> ${Number(latest.goldUsdPerOz || 0).toFixed(2)}</span>
+        <span class="goldprice-stat"><em>${t('marketPriceUpdated')}</em> ${escapeHtml(formatMarketWhenFull(latest.capturedAt))}</span>
+      </div>
+    </div>`;
+
+  // Time-based x axis: a gap in the data (server down for a night) shows as
+  // a gap, not as two neighbouring points.
+  const W = 760, H = 280;
+  const pad = { t: 18, r: 70, b: 34, l: 12 };
+  const innerW = W - pad.l - pad.r;
+  const innerH = H - pad.t - pad.b;
+  const times = points.map((p) => new Date(p.capturedAt).getTime());
+  const t0 = times[0];
+  const t1 = times[times.length - 1];
+  const tSpan = Math.max(1, t1 - t0);
+  const values = points.map((p) => Number(p.goldPerTola) || 0);
+  let minV = Math.min(...values);
+  let maxV = Math.max(...values);
+  const span0 = maxV - minV;
+  const padV = span0 > 0 ? span0 * 0.12 : Math.max(1, maxV * 0.005);
+  minV -= padV; maxV += padV;
+  const vSpan = maxV - minV;
+  const px = (i) => pad.l + (points.length === 1 ? innerW / 2 : ((times[i] - t0) / tSpan) * innerW);
+  const py = (v) => pad.t + innerH - ((v - minV) / vSpan) * innerH;
+  const xy = points.map((p, i) => ({ x: px(i), y: py(values[i]) }));
+  const line = xy.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const base = (pad.t + innerH).toFixed(1);
+  const area = `${line} L${xy[xy.length - 1].x.toFixed(1)},${base} L${xy[0].x.toFixed(1)},${base} Z`;
+  const gridRows = [...Array(4)].map((_, i) => {
+    const v = minV + (vSpan * i) / 3;
+    const y = py(v);
+    return `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${pad.l + innerW}" y2="${y.toFixed(1)}" class="gtrend-grid" />
+      <text x="${pad.l + innerW + 8}" y="${(y + 4).toFixed(1)}" class="gtrend-ylabel">${formatGoldTrendYLabel(v)}</text>`;
+  }).join('');
+  const labelCount = Math.min(6, points.length);
+  const labelIdx = new Set([...Array(labelCount)].map((_, i) => Math.round((i * (points.length - 1)) / Math.max(1, labelCount - 1))));
+  const xLabels = points.map((p, i) => {
+    if (!labelIdx.has(i)) return '';
+    const anchor = i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle';
+    return `<text x="${px(i).toFixed(1)}" y="${H - 10}" text-anchor="${anchor}" class="gtrend-xlabel">${escapeHtml(formatMarketWhen(p.capturedAt, range))}</text>`;
+  }).join('');
+  const last = xy[xy.length - 1];
+
+  el.innerHTML = `${header}
+    <div class="gtrend-wrap">
+      <svg viewBox="0 0 ${W} ${H}" class="gtrend-svg" preserveAspectRatio="none" role="img" aria-label="${t('marketGoldPrice')}">
+        <defs>
+          <linearGradient id="market-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--gold, #b45309)" stop-opacity="0.28"/>
+            <stop offset="100%" stop-color="var(--gold, #b45309)" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        ${gridRows}
+        <path d="${area}" fill="url(#market-fill)"/>
+        <path d="${line}" fill="none" stroke="var(--gold, #b45309)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <line id="market-cross" x1="0" y1="${pad.t}" x2="0" y2="${pad.t + innerH}" class="gtrend-cross" hidden/>
+        <circle id="market-hoverdot" r="4.5" class="gtrend-hoverdot" hidden/>
+        <circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="5" class="gtrend-lastdot"/>
+        ${xLabels}
+      </svg>
+      <div id="market-tip" class="gtrend-tip" hidden></div>
+    </div>`;
+
+  // Hover: nearest reading by x, crosshair + exact figure.
+  const svg = el.querySelector('svg');
+  const cross = el.querySelector('#market-cross');
+  const dot = el.querySelector('#market-hoverdot');
+  const tip = el.querySelector('#market-tip');
+  const wrap = el.querySelector('.gtrend-wrap');
+  if (svg && cross && dot && tip && wrap) {
+    const onMove = (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const relX = ((evt.clientX - rect.left) / rect.width) * W;
+      let best = 0;
+      let bestD = Infinity;
+      xy.forEach((p, i) => { const d = Math.abs(p.x - relX); if (d < bestD) { bestD = d; best = i; } });
+      const p = xy[best];
+      const row = points[best];
+      const prev = best > 0 ? values[best - 1] : values[best];
+      const delta = values[best] - prev;
+      cross.setAttribute('x1', p.x.toFixed(1)); cross.setAttribute('x2', p.x.toFixed(1)); cross.hidden = false;
+      dot.setAttribute('cx', p.x.toFixed(1)); dot.setAttribute('cy', p.y.toFixed(1)); dot.hidden = false;
+      tip.innerHTML = `<strong>${formatCurrencyAmount(values[best])}</strong> / ${t('tolaUnit')}<br>${escapeHtml(formatMarketWhenFull(row.capturedAt))}<br><span class="gtrend-tip-change ${delta >= 0 ? 'is-up' : 'is-down'}">${delta >= 0 ? '+' : ''}${formatCurrencyAmount(delta)}</span>`;
+      tip.hidden = false;
+      const leftPct = (p.x / W) * 100;
+      tip.style.left = `${Math.min(80, Math.max(0, leftPct))}%`;
+      tip.style.top = `${(p.y / H) * 100}%`;
+    };
+    const onLeave = () => { cross.hidden = true; dot.hidden = true; tip.hidden = true; };
+    wrap.addEventListener('mousemove', onMove);
+    wrap.addEventListener('touchmove', (e) => { if (e.touches[0]) onMove(e.touches[0]); }, { passive: true });
+    wrap.addEventListener('mouseleave', onLeave);
+    wrap.addEventListener('touchend', onLeave);
+  }
+
+  renderMarketPriceTable(data);
+}
+
+function renderMarketPriceTable(data) {
+  const wrapEl = document.getElementById('market-price-table');
+  const countEl = document.getElementById('market-price-history-count');
+  if (!wrapEl) return;
+  if (!data || !data.points?.length) {
+    wrapEl.innerHTML = '';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+  const range = data.range || marketPriceRange;
+  const bucketed = Number(data.bucketSeconds) > 0;
+  const rows = [...data.points].reverse();
+  if (countEl) countEl.textContent = `(${rows.length} ${t('marketPriceReadings')} · ${marketRangeLabel(range)})`;
+  const body = rows.map((p, i) => {
+    const older = rows[i + 1];
+    const delta = older ? Number(p.goldPerTola) - Number(older.goldPerTola) : 0;
+    const cls = delta > 0 ? 'is-up' : delta < 0 ? 'is-down' : '';
+    const sign = delta > 0 ? '+' : '';
+    return `<tr>
+      <td>${escapeHtml(formatMarketWhenFull(p.capturedAt))}</td>
+      <td class="num"><strong>${formatCurrencyAmount(p.goldPerTola)}</strong></td>
+      <td class="num">${formatCurrencyAmount(p.goldPerGram)}</td>
+      <td class="num ${cls}">${older ? `${sign}${formatCurrencyAmount(delta)}` : '—'}</td>
+      ${bucketed ? `<td class="num">${formatCurrencyAmount(p.low)} – ${formatCurrencyAmount(p.high)}</td>` : ''}
+      <td class="num">${Number(p.goldUsdPerOz || 0).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+  wrapEl.innerHTML = `<table class="data-table market-price-table">
+    <thead><tr>
+      <th>${t('marketPriceTime')}</th>
+      <th class="num">${t('marketPricePerTola')}</th>
+      <th class="num">${t('marketPricePerGram')}</th>
+      <th class="num">${t('marketPriceChange')}</th>
+      ${bucketed ? `<th class="num">${t('marketPriceLowHigh')}</th>` : ''}
+      <th class="num">${t('marketPriceUsdOz')}</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+  </table>`;
+}
+
+function syncMarketPricePolling() {
+  if (marketPriceTimer) { clearInterval(marketPriceTimer); marketPriceTimer = null; }
+  if (activeView !== 'settings') return;
+  loadMarketGoldPrice().catch(() => {});
+  marketPriceTimer = setInterval(() => {
+    if (!document.hidden) loadMarketGoldPrice().catch(() => {});
+  }, MARKET_PRICE_REFRESH_MS);
+}
+
+document.querySelectorAll('.market-price-range [data-market-range]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.market-price-range [data-market-range]').forEach((b) => {
+      const active = b === btn;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    loadMarketGoldPrice(btn.dataset.marketRange).catch(() => {});
+  });
+});
+document.getElementById('market-price-refresh-btn')?.addEventListener('click', () => {
+  loadMarketGoldPrice().catch(() => {});
+});
+
 document.querySelectorAll('.rate-history-period [data-rate-period]').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.rate-history-period [data-rate-period]').forEach((b) => {

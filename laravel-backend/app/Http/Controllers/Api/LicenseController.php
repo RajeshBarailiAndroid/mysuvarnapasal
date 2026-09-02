@@ -151,6 +151,13 @@ class LicenseController extends ApiController
 
     public function signup(Request $request)
     {
+        // No client uses this today, and it would otherwise be an open,
+        // unauthenticated account-and-licence factory that skips the
+        // mobile-only signup rule and the password policy. Off unless the
+        // operator turns it on deliberately.
+        if (!filter_var(env('LICENSE_SIGNUP_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
+            return $this->fail('Not found.', 404);
+        }
         $sk = $this->secretKey();
         if ($sk === null) return $this->fail('This server is not configured for license activation.', 500);
 
@@ -166,8 +173,12 @@ class LicenseController extends ApiController
         if (!preg_match('/^[a-z0-9_]{3,24}$/', $username)) {
             return $this->fail('Username must be 3–24 characters (letters, numbers, underscore).');
         }
-        if (strlen($password) < 6 || strlen($password) > 128) {
-            return $this->fail('Password must be at least 6 characters.');
+        if (strlen($password) < 8 || strlen($password) > 128) {
+            return $this->fail('Password must be at least 8 characters.');
+        }
+        if ($email !== '' && !preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) return $this->fail('Enter a valid email address.');
+        if ($email !== '' && User::whereRaw('LOWER(email) = ?', [$email])->exists()) {
+            return $this->fail('An account with that email address already exists.', 409);
         }
         if ($deviceId === '' || strlen($deviceId) > 64) return $this->fail('deviceId is required.');
         if (User::where('username', $username)->exists()) {

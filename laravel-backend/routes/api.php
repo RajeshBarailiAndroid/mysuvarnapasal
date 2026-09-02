@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\OldGoldController;
 use App\Http\Controllers\Api\OptionController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PublicRequestController;
+use App\Http\Controllers\Api\GoldPriceController;
 use App\Http\Controllers\Api\RatesController;
 use App\Http\Controllers\Api\RepairController;
 use App\Http\Controllers\Api\RequestController;
@@ -67,9 +68,15 @@ Route::prefix('public/{code}')->group(function () {
     Route::post('/requests', [PublicRequestController::class, 'store_'])->middleware('throttle:20,1');
 });
 
-Route::get('/metal-rates', [RatesController::class, 'metalRates']);
+Route::get('/metal-rates', [RatesController::class, 'metalRates'])->middleware('throttle:30,1');
 Route::get('/shared/gold-rates', [RatesController::class, 'sharedGoldRates']);
 Route::get('/cron/capture-gold-rate', [RatesController::class, 'cronCapture']);
+
+// ── Market gold price history (global, read-only) ────────────────────────
+// Not shop data, so no token needed — the phone and the web both read it.
+// Throttled because a read can trigger a capture from the metal API.
+Route::get('/gold-price', [GoldPriceController::class, 'show'])->middleware('throttle:120,1');
+Route::get('/gold-price/latest', [GoldPriceController::class, 'latest'])->middleware('throttle:120,1');
 
 // ── Admin: shop moderation (the single is_admin account only) ────────────
 // EnsureAdmin answers 404 to everyone else, so this surface is not
@@ -87,7 +94,7 @@ Route::middleware(['attach.user', 'admin'])->prefix('admin')->group(function () 
 });
 
 // ── Authenticated routes ─────────────────────────────────────────────────
-Route::middleware(['attach.user', 'writable'])->group(function () {
+Route::middleware(['attach.user', 'writable', 'shop.lock'])->group(function () {
     Route::get('/sync/run', [SyncController::class, 'run']);
     Route::get('/sync/status', [SyncController::class, 'status']);
 

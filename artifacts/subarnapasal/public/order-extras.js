@@ -287,9 +287,9 @@
     const qty = Math.max(1, num(form.quantity?.value) || 1);
     if (mode !== 'custom') {
       const item = (typeof itemsCache !== 'undefined' ? itemsCache : []).find((i) => i.id === form.itemId?.value);
-      if (item && typeof itemValue === 'function') {
+      if (item && typeof itemMarketValue === 'function') {
         try {
-          return itemValue(item, { goldRatePerTola: goldRateCache, silverRatePerTola: silverRateCache }) * qty;
+          return (itemMarketValue(item, { goldRatePerTola: goldRateCache, silverRatePerTola: silverRateCache }) || 0) * qty;
         } catch (_) { /* noop */ }
       }
       return 0;

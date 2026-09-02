@@ -98,7 +98,9 @@ class DashboardController extends ApiController
             $database['ok'] = true;
             $database['driver'] = DB::connection()->getDriverName();
         } catch (\Throwable $err) {
-            $database['error'] = $err->getMessage();
+            // Never the message: it carries the DSN/host on a connection failure.
+            \Illuminate\Support\Facades\Log::error('health: database check failed', ['error' => $err->getMessage()]);
+            $database['error'] = 'unavailable';
         }
         $metalRates = ['configured' => MetalRates::isConfigured(), 'provider' => MetalRates::getProvider()];
         if ($metalRates['configured']) {
@@ -109,7 +111,7 @@ class DashboardController extends ApiController
                 $metalRates['updatedAt'] = $live['updatedAt'] ?? null;
             } catch (\Throwable $err) {
                 $metalRates['ok'] = false;
-                $metalRates['error'] = $err->getMessage();
+                $metalRates['error'] = 'unavailable';
             }
         } else {
             $metalRates['ok'] = false;

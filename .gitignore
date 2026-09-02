@@ -23,3 +23,5 @@ desktop-app/
 desktop/
 build-mac-app.command
 build-windows-app.command
+
+.claude/settings.local.json

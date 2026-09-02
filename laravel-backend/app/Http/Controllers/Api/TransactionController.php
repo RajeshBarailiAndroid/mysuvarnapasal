@@ -43,7 +43,8 @@ class TransactionController extends ApiController
         foreach ($store['items'] as $i => $item) if (($item['id'] ?? null) === $itemId) { $idx = $i; break; }
         if ($idx === null) return $this->fail('Item not found.', 404);
         $item = &$store['items'][$idx];
-        $qty = max(1, Pos::num($quantity, 1));
+        $qty = max(1, (int) floor(Pos::num($quantity, 1)));
+        if ($qty > 100000) return $this->fail('Quantity is too large.');
         if ($type === 'stock_in') {
             $item['quantity'] += $qty;
             $item['status'] = 'in_stock';
