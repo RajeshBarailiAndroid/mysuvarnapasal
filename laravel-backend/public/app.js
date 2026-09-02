@@ -18,8 +18,10 @@ const fmt = new Intl.NumberFormat('en-NP');
 
 const CURRENCIES = {
   NPR: { code: 'NPR', label: 'NPR — Nepalese Rupee (रू)', nprPerUnit: 1, locale: 'en-NP' },
-  USD: { code: 'USD', label: 'USD — US Dollar ($)', nprPerUnit: 133, locale: 'en-US' },
-  CAD: { code: 'CAD', label: 'CAD — Canadian Dollar (CA$)', nprPerUnit: 98, locale: 'en-CA' }
+  // nprPerUnit is deliberately 1: amounts are stored in the shop's currency,
+  // not converted (see "Money model" below).
+  USD: { code: 'USD', label: 'USD — US Dollar ($)', nprPerUnit: 1, locale: 'en-US' },
+  CAD: { code: 'CAD', label: 'CAD — Canadian Dollar (CA$)', nprPerUnit: 1, locale: 'en-CA' }
 };
 
 let displayCurrency = 'NPR';
@@ -66,6 +68,29 @@ function updateThemeToggleUI() {
   });
 }
 
+// ── Money model ───────────────────────────────────────────────────────────
+// Every amount the shop types (gold rate, making charge, prices, bills) is
+// saved EXACTLY as typed, in the currency the shop chose in Settings, and the
+// currency's name is saved with the settings. Nothing is converted on the way
+// in or out: a shop working in USD types 4,000 and sees $4,000 on the web,
+// the phone and the bill. `nprPerUnit` therefore stays 1 for every currency
+// and only the symbol/locale differ.
+//
+// The one thing that IS converted is the market gold feed, which the server
+// records in Nepali rupees for everyone: `marketFx` (NPR per unit, from the
+// server's live exchange rate) turns it into the shop's currency for display.
+const marketFx = { NPR: 1, USD: 133, CAD: 98 };
+
+function marketNprPerUnit(code = displayCurrency) {
+  const v = Number(marketFx[code]);
+  return v > 0 ? v : 1;
+}
+
+/** A market-feed amount (NPR) shown in the shop's currency. */
+function formatMarketAmount(npr) {
+  return formatCurrencyAmount(Number(npr) / marketNprPerUnit());
+}
+
 function getCurrency() {
   return CURRENCIES[displayCurrency] || CURRENCIES.NPR;
 }
@@ -82,9 +107,9 @@ function displayToNpr(amount) {
   return Number(amount) * getCurrency().nprPerUnit;
 }
 
+/** A live metal quote in `currency` → NPR, using the market exchange rate. */
 function displayToNprAt(amount, currency) {
-  const c = CURRENCIES[currency] || CURRENCIES.USD;
-  return Number(amount) * c.nprPerUnit;
+  return Number(amount) * marketNprPerUnit(currency in marketFx ? currency : 'USD');
 }
 
 function inputMoneyToNpr(amount) {
@@ -1528,6 +1553,30 @@ let rateSyncInFlight = false;
 let ratesUpdatedAt = null;
 let ratesUpdatedBy = null;
 
+/**
+ * Take the NPR-per-unit table the server sends and make it the one this page
+ * converts with. Returns true when a figure actually moved, so the caller
+ * knows prices on screen need redrawing.
+ */
+function applyServerFxRates(fx) {
+  if (!fx || typeof fx !== 'object') return false;
+  let moved = false;
+  for (const code of ['USD', 'CAD']) {
+    const next = Number(fx[code]);
+    if (!(next > 0)) continue;
+    if (marketFx[code] !== next) {
+      marketFx[code] = next;
+      moved = true;
+    }
+  }
+  if (moved) {
+    settingsCache.fxRates = { ...(settingsCache.fxRates || {}), ...fx };
+    // Only the market gold card converts; redraw it with the new rate.
+    if (typeof renderMarketGoldPrice === 'function') renderMarketGoldPrice();
+  }
+  return moved;
+}
+
 async function syncRatesFromServer() {
   if (rateSyncInFlight || document.hidden) return;
   if (typeof isSignedInSync === 'function' && !isSignedInSync()) return;
@@ -1541,8 +1590,12 @@ async function syncRatesFromServer() {
     const stampChanged = settings.ratesUpdatedAt && settings.ratesUpdatedAt !== ratesUpdatedAt;
     ratesUpdatedAt = settings.ratesUpdatedAt || ratesUpdatedAt;
     ratesUpdatedBy = settings.ratesUpdatedBy || ratesUpdatedBy;
+    // The server's live exchange rate. Applying it here is what keeps this
+    // page converting with the same figures as the phone and as the market
+    // gold feed — the browser's built-in 133/98 is only a cold-start guess.
+    const fxChanged = applyServerFxRates(settings.fxRates);
     const changed = gold !== goldRateCache || goldBuy !== goldBuyRateCache || silver !== silverRateCache;
-    if (!changed && !stampChanged) return;
+    if (!changed && !stampChanged && !fxChanged) return;
     goldRateCache = gold;
     goldBuyRateCache = goldBuy;
     silverRateCache = silver;
@@ -4072,8 +4125,7 @@ async function loadSettings() {
     fxUpdatedAt: settings.fxUpdatedAt || null
   };
   // Keep client-side currency conversion in sync with the shop's configured FX rates.
-  if (settingsCache.fxRates.USD > 0) CURRENCIES.USD.nprPerUnit = Number(settingsCache.fxRates.USD);
-  if (settingsCache.fxRates.CAD > 0) CURRENCIES.CAD.nprPerUnit = Number(settingsCache.fxRates.CAD);
+  applyServerFxRates(settingsCache.fxRates);
   const fxUsdInput = document.getElementById('settings-fx-usd');
   const fxCadInput = document.getElementById('settings-fx-cad');
   if (fxUsdInput && !fxUsdInput.matches(':focus')) fxUsdInput.value = settingsCache.fxRates.USD || '';
@@ -7485,8 +7537,7 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
     if (saved.fxRates) {
       settingsCache.fxRates = saved.fxRates;
       settingsCache.fxUpdatedAt = saved.fxUpdatedAt || settingsCache.fxUpdatedAt;
-      if (saved.fxRates.USD > 0) CURRENCIES.USD.nprPerUnit = Number(saved.fxRates.USD);
-      if (saved.fxRates.CAD > 0) CURRENCIES.CAD.nprPerUnit = Number(saved.fxRates.CAD);
+      applyServerFxRates(saved.fxRates);
     }
     if (Array.isArray(saved.rateHistory)) {
       rateHistoryCache = saved.rateHistory;
@@ -7615,19 +7666,19 @@ function renderMarketGoldPrice() {
           </div>
         </div>
         <div class="goldprice-quote is-${dir}">
-          <span class="goldprice-value">${formatCurrencyAmount(latest.goldPerTola)}</span>
+          <span class="goldprice-value">${formatMarketAmount(latest.goldPerTola)}</span>
           <span class="goldprice-unit">/ ${t('tolaUnit')}</span>
           <span class="goldprice-change">
             <span class="goldprice-arrow" aria-hidden="true">${arrow}</span>
-            ${sign}${formatCurrencyAmount(change)}
+            ${sign}${formatMarketAmount(change)}
             <span class="goldprice-pct">(${sign}${pct}%)</span>
           </span>
         </div>
       </div>
       <div class="goldprice-stats">
-        <span class="goldprice-stat"><em>${t('marketPricePerGram')}</em> ${formatCurrencyAmount(latest.goldPerGram)}</span>
-        <span class="goldprice-stat"><em>${t('chartHigh')}</em> ${formatCurrencyAmount(data.high)}</span>
-        <span class="goldprice-stat"><em>${t('chartLow')}</em> ${formatCurrencyAmount(data.low)}</span>
+        <span class="goldprice-stat"><em>${t('marketPricePerGram')}</em> ${formatMarketAmount(latest.goldPerGram)}</span>
+        <span class="goldprice-stat"><em>${t('chartHigh')}</em> ${formatMarketAmount(data.high)}</span>
+        <span class="goldprice-stat"><em>${t('chartLow')}</em> ${formatMarketAmount(data.low)}</span>
         <span class="goldprice-stat"><em>${t('marketPriceUsdOz')}</em> ${Number(latest.goldUsdPerOz || 0).toFixed(2)}</span>
         <span class="goldprice-stat"><em>${t('marketPriceUpdated')}</em> ${escapeHtml(formatMarketWhenFull(latest.capturedAt))}</span>
       </div>
@@ -7660,7 +7711,7 @@ function renderMarketGoldPrice() {
     const v = minV + (vSpan * i) / 3;
     const y = py(v);
     return `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${pad.l + innerW}" y2="${y.toFixed(1)}" class="gtrend-grid" />
-      <text x="${pad.l + innerW + 8}" y="${(y + 4).toFixed(1)}" class="gtrend-ylabel">${formatGoldTrendYLabel(v)}</text>`;
+      <text x="${pad.l + innerW + 8}" y="${(y + 4).toFixed(1)}" class="gtrend-ylabel">${formatGoldTrendYLabel(v / marketNprPerUnit())}</text>`;
   }).join('');
   // Labels are picked by how far apart they actually sit, not by index. The x
   // axis is time-based, so two readings a couple of minutes apart land within a
@@ -7720,7 +7771,7 @@ function renderMarketGoldPrice() {
       const delta = values[best] - prev;
       cross.setAttribute('x1', p.x.toFixed(1)); cross.setAttribute('x2', p.x.toFixed(1)); cross.hidden = false;
       dot.setAttribute('cx', p.x.toFixed(1)); dot.setAttribute('cy', p.y.toFixed(1)); dot.hidden = false;
-      tip.innerHTML = `<strong>${formatCurrencyAmount(values[best])}</strong> / ${t('tolaUnit')}<br>${escapeHtml(formatMarketWhenFull(row.capturedAt))}<br><span class="gtrend-tip-change ${delta >= 0 ? 'is-up' : 'is-down'}">${delta >= 0 ? '+' : ''}${formatCurrencyAmount(delta)}</span>`;
+      tip.innerHTML = `<strong>${formatMarketAmount(values[best])}</strong> / ${t('tolaUnit')}<br>${escapeHtml(formatMarketWhenFull(row.capturedAt))}<br><span class="gtrend-tip-change ${delta >= 0 ? 'is-up' : 'is-down'}">${delta >= 0 ? '+' : ''}${formatMarketAmount(delta)}</span>`;
       tip.hidden = false;
       const leftPct = (p.x / W) * 100;
       tip.style.left = `${Math.min(80, Math.max(0, leftPct))}%`;
@@ -7756,10 +7807,10 @@ function renderMarketPriceTable(data) {
     const sign = delta > 0 ? '+' : '';
     return `<tr>
       <td>${escapeHtml(formatMarketWhenFull(p.capturedAt))}</td>
-      <td class="num"><strong>${formatCurrencyAmount(p.goldPerTola)}</strong></td>
-      <td class="num">${formatCurrencyAmount(p.goldPerGram)}</td>
-      <td class="num ${cls}">${older ? `${sign}${formatCurrencyAmount(delta)}` : '—'}</td>
-      ${bucketed ? `<td class="num">${formatCurrencyAmount(p.low)} – ${formatCurrencyAmount(p.high)}</td>` : ''}
+      <td class="num"><strong>${formatMarketAmount(p.goldPerTola)}</strong></td>
+      <td class="num">${formatMarketAmount(p.goldPerGram)}</td>
+      <td class="num ${cls}">${older ? `${sign}${formatMarketAmount(delta)}` : '—'}</td>
+      ${bucketed ? `<td class="num">${formatMarketAmount(p.low)} – ${formatMarketAmount(p.high)}</td>` : ''}
       <td class="num">${Number(p.goldUsdPerOz || 0).toFixed(2)}</td>
     </tr>`;
   }).join('');

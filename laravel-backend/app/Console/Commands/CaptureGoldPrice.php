@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\FxRates;
 use App\Services\GoldPriceHistory;
 use Illuminate\Console\Command;
 
@@ -19,6 +20,15 @@ class CaptureGoldPrice extends Command
     public function handle(): int
     {
         try {
+            // Refresh the exchange rate first: it is what turns the USD spot
+            // price into the NPR figure stored below, and the same table the
+            // clients convert with. Doing it here keeps the cache warm so a
+            // shopkeeper signing in never waits on the FX provider.
+            $fx = FxRates::refresh();
+            $this->line(sprintf(
+                'FX %s NPR/USD (%s%s)',
+                $fx['rates']['USD'], $fx['source'], $fx['live'] ? '' : ', not live'
+            ));
             $row = GoldPriceHistory::capture();
         } catch (\Throwable $err) {
             $this->error('Capture failed: ' . $err->getMessage());

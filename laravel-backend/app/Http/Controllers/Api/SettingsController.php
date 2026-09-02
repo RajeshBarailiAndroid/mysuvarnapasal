@@ -180,6 +180,13 @@ class SettingsController extends ApiController
         $gold = Pos::num($settings['goldRatePerTola'] ?? 0);
         $silver = Pos::num($settings['silverRatePerTola'] ?? 0);
         $buy = Pos::num($settings['goldBuyRatePerTola'] ?? 0);
+        $fx = \App\Services\FxRates::payload();
+        if (!$fx['live'] && !empty($settings['fxRates']['USD'])) {
+            // Feed down and this shop has its own figures: better than a
+            // constant that is years out of date.
+            $fx['rates'] = array_merge($fx['rates'], (array) $settings['fxRates']);
+            $fx['source'] = 'shop';
+        }
         return [
             'goldRatePerTola' => $gold,
             'goldRatePerGram' => Pos::round2($gold / Pos::TOLA_GRAMS),
@@ -188,6 +195,19 @@ class SettingsController extends ApiController
             'goldBuyRatePerTola' => $buy,
             'ratesUpdatedAt' => $settings['ratesUpdatedAt'] ?? null,
             'ratesUpdatedBy' => $settings['ratesUpdatedBy'] ?? null,
+            // The display currency the shop chose on the web (NPR / USD /
+            // CAD). The phones follow it — they show it, they do not pick it.
+            'currency' => in_array($settings['currency'] ?? 'NPR', ['NPR', 'USD', 'CAD'], true)
+                ? $settings['currency'] : 'NPR',
+            // NPR per unit of each foreign currency, from the server's live FX
+            // feed, so the phone and the web convert with the SAME figures --
+            // and the same ones used to price the market gold feed. A shop's
+            // hand-typed settings.fxRates is kept only as a fallback for when
+            // the feed is unreachable.
+            'fxRates' => $fx['rates'],
+            'fxSource' => $fx['source'],
+            'fxUpdatedAt' => $fx['updatedAt'],
+            'fxLive' => $fx['live'],
         ];
     }
 

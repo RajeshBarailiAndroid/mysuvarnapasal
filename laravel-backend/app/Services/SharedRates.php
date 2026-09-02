@@ -16,14 +16,16 @@ class SharedRates
     public const MAX_HISTORY_PER_MODE = 500;
     public const MAX_TICKS = 90000;
 
+    /**
+     * NPR per one unit of the given currency, from the live FX feed.
+     *
+     * This is what converts the international gold price into the NPR figure
+     * every shop sees, so it must be the same number the clients display
+     * prices with — see FxRates, which is the single source for both.
+     */
     public static function nprPerUnit(string $code): float
     {
-        $env = [
-            'USD' => Pos::num(env('FX_NPR_PER_USD'), 0) > 0 ? Pos::num(env('FX_NPR_PER_USD')) : 133,
-            'CAD' => Pos::num(env('FX_NPR_PER_CAD'), 0) > 0 ? Pos::num(env('FX_NPR_PER_CAD')) : 98,
-            'NPR' => 1,
-        ];
-        return $env[$code] ?? $env['USD'];
+        return FxRates::nprPerUnit($code);
     }
 
     public static function displayToNpr($amount, $currency): float
